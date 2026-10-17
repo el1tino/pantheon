@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 
+import httpx
 from openai import AsyncOpenAI
 
 from app.config import APP_NAME, get_settings
@@ -33,6 +34,7 @@ def _get_client() -> AsyncOpenAI:
             api_key=settings.openrouter_api_key,
             base_url=settings.openrouter_base_url,
             default_headers={"X-Title": APP_NAME},
+            max_retries=1,
         )
     return _client
 
@@ -41,6 +43,7 @@ async def chat(
     messages: list[dict[str, str]],
     model: str | None = None,
     max_tokens: int | None = None,
+    timeout: float | None = None,
 ) -> ChatResult:
     settings = get_settings()
     model = model or settings.default_model
@@ -49,6 +52,7 @@ async def chat(
             model=model,
             messages=messages,
             max_tokens=max_tokens,
+            timeout=timeout,
             # Ask OpenRouter to report the real cost of the call in `usage`.
             extra_body={"usage": {"include": True}},
         )
@@ -71,3 +75,27 @@ async def chat(
         completion_tokens=usage.completion_tokens if usage else 0,
         cost_usd=float(cost) if cost is not None else None,
     )
+
+
+async def fetch_prices() -> dict[str, tuple[float, float]]:
+    """USD per token (input, output) for every model OpenRouter lists.
+
+    The model list is public, so no key is sent with this request.
+    """
+    url = get_settings().openrouter_base_url.rstrip("/") + "/models"
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            data = resp.json()["data"]
+    except Exception as exc:
+        raise GatewayError(f"Could not fetch model prices: {exc}") from exc
+
+    prices: dict[str, tuple[float, float]] = {}
+    for m in data:
+        pricing = m.get("pricing") or {}
+        try:
+            prices[m["id"]] = (float(pricing["prompt"]), float(pricing["completion"]))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return prices
