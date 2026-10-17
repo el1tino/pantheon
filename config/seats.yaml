@@ -1,0 +1,19 @@
+# The 13 council seats. A run seats A–G by default.
+# model_id values change often: confirm each one at https://openrouter.ai/models
+# before relying on it (they are first used in milestone 2).
+# sensitive_ok: false means the seat never receives files marked private.
+
+seats:
+  - { letter: A, name: Claude,     provider: Anthropic,   model_id: anthropic/claude-sonnet-4.5,       colour: "#F5A524", role: "Lead engineer: architecture and most of the code",        voice_id: "", sensitive_ok: true }
+  - { letter: B, name: GPT,        provider: OpenAI,      model_id: openai/gpt-4o-mini,                colour: "#10B981", role: "Marketing lead: copy, launch plan, pitch deck text",      voice_id: "", sensitive_ok: true }
+  - { letter: C, name: Gemini,     provider: Google,      model_id: google/gemini-2.5-flash,           colour: "#7C6CF2", role: "Design lead: visual identity, image direction, research", voice_id: "", sensitive_ok: true }
+  - { letter: D, name: DeepSeek,   provider: DeepSeek,    model_id: deepseek/deepseek-chat,            colour: "#22D3EE", role: "Reviewer: second opinions, bulk work",                    voice_id: "", sensitive_ok: false }
+  - { letter: E, name: Grok,       provider: xAI,         model_id: x-ai/grok-3-mini,                  colour: "#C0C4CC", role: "Challenger: stress-tests every plan and assumption",      voice_id: "", sensitive_ok: true }
+  - { letter: F, name: Mistral,    provider: Mistral AI,  model_id: mistralai/mistral-small-3.2-24b-instruct, colour: "#FB7A24", role: "Strategist: business model, pricing, business plan", voice_id: "", sensitive_ok: true }
+  - { letter: G, name: Qwen,       provider: Alibaba,     model_id: qwen/qwen3-235b-a22b,              colour: "#A855F7", role: "Content producer: bulk content, translations",            voice_id: "", sensitive_ok: false }
+  - { letter: H, name: Kimi,       provider: Moonshot AI, model_id: moonshotai/kimi-k2,                colour: "#F43F5E", role: "Product manager: scope, specs, priorities",               voice_id: "", sensitive_ok: false }
+  - { letter: I, name: GLM,        provider: Z.ai,        model_id: z-ai/glm-4.5,                      colour: "#14B8A6", role: "Front-end builder",                                       voice_id: "", sensitive_ok: false }
+  - { letter: J, name: MiMo,       provider: Xiaomi,      model_id: xiaomi/mimo-7b,                    colour: "#FF7F6B", role: "Back-end builder",                                        voice_id: "", sensitive_ok: false }
+  - { letter: K, name: Muse Spark, provider: Meta,        model_id: meta-llama/llama-4-maverick,       colour: "#38BDF8", role: "Community lead: social media plan and posts",             voice_id: "", sensitive_ok: true }
+  - { letter: L, name: Nemotron,   provider: NVIDIA,      model_id: nvidia/llama-3.3-nemotron-super-49b-v1, colour: "#A3E635", role: "QA: tests, bug reports, fix checks",          voice_id: "", sensitive_ok: true }
+  - { letter: M, name: Granite,    provider: IBM,         model_id: ibm-granite/granite-4.0-h-micro,   colour: "#4F7CAC", role: "Documentation and data checks",                           voice_id: "", sensitive_ok: true }

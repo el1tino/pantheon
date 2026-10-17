@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+:root {
+  --background: #07070a;
+  --foreground: #e8e6e1;
+  --muted: #8a8780;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(255, 190, 110, 0.06), transparent 60%),
+    var(--background);
+  color: var(--foreground);
+  min-height: 100vh;
+}
