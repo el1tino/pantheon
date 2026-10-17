@@ -13,7 +13,7 @@ No seat has a fixed role. Later in a run, each model puts itself forward for the
 
 ![The Chamber, mid-debate](docs/milestone-3-chamber-live.png)
 
-![A Decide result](docs/milestone-4-result.png)
+![A finished Write run: roles voted in, decided by you](docs/milestone-4-done.png)
 
 ## Requirements
 
