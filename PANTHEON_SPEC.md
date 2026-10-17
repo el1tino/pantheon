@@ -6,17 +6,41 @@ Oct 17, 2026 · @dan
 
 Pantheon is a web app where the leading AI models from different providers meet as a council, debate a goal you give them, divide the work by their strengths, and build the result together while you watch.
 
-One-line pitch: give one prompt, such as "Come up with a business idea and create everything for it", and watch Claude, GPT, Gemini, DeepSeek and others negotiate a plan and deliver it.
+One-line pitch: give one prompt and watch Claude, GPT, Gemini, DeepSeek and others negotiate a plan and deliver it. The prompt can be anything people use AI for: a question, an email or essay, a trip or meal plan, a decision between products, a topic to learn, an app to build, a logo, or "come up with a business idea and create everything for it".
 
 The live council meeting is the product's signature. It must look cinematic, sleek and alive, so a screen recording of it sells the product on its own.
 
-What Pantheon delivers per run: the chosen idea, research, a business plan, brand name and identity, logo and images, a working website or app, marketing copy and a pitch deck. It does not register companies, handle money or find customers; the user does that.
+What Pantheon delivers depends on the mission (see below): an answer, a finished piece of writing, a plan, a recommendation, a lesson, an app, images, or for a business launch the chosen idea, research, a business plan, brand identity, logo and images, a working website, marketing copy and a pitch deck. It does not register companies, handle money, book anything or act in the world; the user does that.
 
 Name: Pantheon is a placeholder. Keep the name in one config constant so it can be swapped later.
 
-## How a council run works
+## Missions
 
-A run is a fixed sequence of six phases, with the user approving at three checkpoints so money is never spent building something they rejected.
+Every run has a mission: the kind of job the user wants done. The mission decides which phases the run goes through, where the user is asked to approve, and what it delivers. The debate protocol, voting, budget cap, guardrails and the Chamber are the same for every mission; the phase rail simply shows that mission's phases.
+
+On the convene page the mission is **Auto** by default: the moderator reads the goal, picks the mission and says why in one line, and the run starts. The user can also pick a mission directly.
+
+| Mission | For | Phases (checkpoints in bold) | Delivers |
+|---|---|---|---|
+| **Ask** | Questions, advice, explanations | Convene → Answer → Debate → Verdict | One merged answer, with any dissent noted |
+| **Write** | Emails, essays, cover letters, posts, stories | Convene → Outline (**pick an outline**) → Draft → Critique → Revise (**accept or ask for changes**) | The finished text |
+| **Plan** | Trips, events, meals, workouts, budgets, schedules | Convene → Options (**pick an option**) → Detail → Check (**accept or ask for changes**) | A detailed plan with times, costs and lists |
+| **Decide** | Choosing between products, offers, options | Convene → Criteria → Research → Debate → Recommendation (**accept or ask for changes**) | A comparison table and a recommendation |
+| **Learn** | Understanding a topic, studying for a test | Convene → Approach (**pick an approach**) → Lesson → Quiz | A lesson with examples and a short quiz with answers |
+| **Build** | Apps, websites, scripts | Convene → Ideas (**pick one**) → Roles (**approve the plan**) → Build → Integrate (**review**) | Working code that runs in Docker |
+| **Create** | Logos, illustrations, image sets | Convene → Concepts (**pick a concept**) → Roles → Create (**review**) | Images from the image consultants |
+| **Launch** | A business from scratch | The six phases below | Everything listed under Vision |
+
+How the light missions work:
+
+- **Options phases** (Outline, Options, Approach, Concepts, Ideas): every seat proposes 1 to 3 options, then each seat scores the others' options anonymously from 1 to 5, never its own. The top 3 go to the user at the checkpoint, each with its average score.
+- **Making phases** (Draft, Detail, Lesson, Answer): the work is split by vote, as in Roles: seats put themselves forward for each part and the others vote. The rest review what was made.
+- **Critique and Check phases**: every reviewer must point at a specific part of the work. The maker answers and revises.
+- **Topics that need care.** For health, legal or money questions the council says plainly that it is not a professional, flags when the user should see one, and never presents a guess as fact.
+
+## How a Launch run works
+
+A Launch run is a fixed sequence of six phases, with the user approving at three checkpoints so money is never spent building something they rejected. Build and Create use the same machinery with fewer phases.
 
 1.  **Convene.** The user types a goal, picks which models attend, and sets a budget cap in dollars.
 
@@ -30,7 +54,7 @@ A run is a fixed sequence of six phases, with the user approving at three checkp
 
 6.  **Integrate.** Code is run and tested, and errors go back to the owner. A final consistency pass checks that name, colours and pricing match everywhere. **Checkpoint 3: the user reviews the deliverables and can request changes.**
 
-During any phase, the user can type into the council chat. Their message counts as a direct instruction from the client.
+During any phase of any mission, the user can type into the council chat. Their message counts as a direct instruction from the client.
 
 ## Council seats
 
@@ -208,7 +232,7 @@ Build in seven milestones, each ending in something that runs and can be shown. 
 
 3.  **The Chamber, live.** WebSocket events, letter arc, project core with live + and − counters, communication lines, build arrows, speaking and thinking states, streaming transcript, phase rail, cost meter. Done when: the debate from milestone 2 plays live in the browser and looks good enough to screen-record.
 
-4.  **Ideas, voting and checkpoints.** Anonymous scoring, vote animations, checkpoint cards, user messages into the chat. Done when: a run stops at the idea checkpoint and continues after the user picks.
+4.  **Missions, ideas, voting and checkpoints.** Mission picker and Auto detection, anonymous scoring, vote animations, checkpoint cards, user messages into the chat, and the text missions (Ask, Write, Plan, Decide, Learn) end to end. Done when: a Launch run stops at the idea checkpoint and continues after the user picks, and each text mission delivers its result.
 
 5.  **Roles and building.** Self-nomination and voting for roles, task plan, the Board, builder and reviewer agents writing files, the Vault. Done when: a run produces a small multi-file website.
 

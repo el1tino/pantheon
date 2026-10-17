@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Pantheon is a web app where chat models from many providers sit as a council, debate a user's goal, split the work by strength and build the result while the user watches the live "Chamber" UI. **The full spec is `PANTHEON_SPEC.md`. Read it before you start any milestone.**
+Pantheon is a web app where chat models from many providers sit as a council, debate a user's goal, split the work by strength and build the result while the user watches the live "Chamber" UI. A run can be any everyday AI job, not just a business launch: each run has a **mission** (Ask, Write, Plan, Decide, Learn, Build, Create, Launch) that sets its phases, checkpoints and deliverable. **The full spec is `PANTHEON_SPEC.md`. Read it before you start any milestone.**
 
 ## Working rules
 
@@ -62,7 +62,7 @@ pantheon/
 1. **Skeleton:** FastAPI, Next.js, SQLite, `.env`, one OpenRouter call end to end. Done when a test page shows a reply from one model.
 2. **Debate engine:** seats, the reply format, rounds with limits, moderator summary, cost tracking. Done when 4 models debate in the terminal and the transcript is saved.
 3. **The Chamber, live:** WebSocket, letter arc, project core with +/− counters, lines, arrows, seat states, transcript, phase rail, cost meter. Use the frontend design skill and treat the spec's Chamber section as the design brief.
-4. **Ideas, voting and checkpoints.**
+4. **Missions, ideas, voting and checkpoints:** mission picker and Auto detection, anonymous scoring, checkpoint cards, user messages, and the text missions (Ask, Write, Plan, Decide, Learn) end to end.
 5. **Roles and building:** models nominate themselves for workstreams and vote on who does what (no fixed roles, no self-votes), the Board and the Vault.
 6. **Images and integration:** Docker execution and the consistency pass.
 7. **Replay, Demo mode and deployment.**
