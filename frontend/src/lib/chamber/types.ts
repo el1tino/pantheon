@@ -40,8 +40,26 @@ export type Diff = {
 };
 
 export const MODERATOR = "moderator";
+export const CLIENT = "client"; // the user, addressing the council
 
-export const PHASES = ["convene", "ideas", "research", "roles", "build", "integrate"] as const;
+export type RailPhase = { key: string; label: string; available: boolean };
+
+export type PickOption = {
+  id: string;
+  title: string;
+  summary: string;
+  seat: string;
+  score: number;
+  votes: number;
+};
+
+export type Checkpoint =
+  | { kind: "budget"; spent: number; cap: number; estimate: number }
+  | { kind: "pick"; phase: string; options: PickOption[]; can_retry: boolean }
+  | { kind: "review"; phase: string; title: string; content: string; path: string };
+
+export type Deliverable = { title: string; content: string; path: string };
+
 
 export const STANCE_LABEL: Record<string, string> = {
   propose: "Proposes",

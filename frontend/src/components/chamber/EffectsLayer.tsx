@@ -15,7 +15,7 @@ import {
   talkCurve,
 } from "@/lib/chamber/geometry";
 import { ChamberState, SeatView } from "@/lib/chamber/reducer";
-import { ChamberEvent, MODERATOR, STANCE_COLOUR, STANCE_LABEL } from "@/lib/chamber/types";
+import { CLIENT, ChamberEvent, MODERATOR, STANCE_COLOUR, STANCE_LABEL } from "@/lib/chamber/types";
 import type { EffectListener } from "@/lib/chamber/useChamber";
 
 const GREEN = "#4ade80";
@@ -370,7 +370,15 @@ export default function EffectsLayer({
       const nameOf = (letter: string) => seatViews.find((s) => s.letter === letter)?.name ?? letter;
       const p = ev.payload;
 
-      if (ev.type === "message_routed" && p.from !== MODERATOR) {
+      if (ev.type === "message_routed" && p.from === CLIENT) {
+        // The client speaks: a white ripple rises from the bottom to every letter.
+        add(rippleFx({ x: lay.width / 2, y: lay.height + 40 }, "#ffffff", lay.height * 1.15, reduced));
+      } else if (ev.type === "checkpoint_resolved" && (p.action === "pick" || p.action === "accept")) {
+        // Gavel: the bench flashes and a ring strikes out from the core.
+        add(benchFlashFx(lay.seats, "#fde68a", reduced));
+        add(rippleFx({ x: lay.core.x, y: lay.core.y }, "#fde68a", Math.max(lay.width, lay.height) * 0.6, reduced));
+        hit(1, 0);
+      } else if (ev.type === "message_routed" && p.from !== MODERATOR) {
         const from = spot(p.from);
         if (!from) return;
         const msg = state.messages.find((m) => m.id === p.message_id);

@@ -69,6 +69,7 @@ export const createRun = (body: {
   budget_usd: number;
   max_rounds: number;
   cheap: boolean;
+  mission: string;
 }) => request<{ run_id: string }>("/api/runs", { method: "POST", body: JSON.stringify(body) });
 
 export const controlRun = (runId: string, action: "pause" | "resume" | "stop") =>
@@ -82,3 +83,13 @@ export const answerBudget = (runId: string, action: "raise" | "stop", cap_usd?: 
     method: "POST",
     body: JSON.stringify({ action, cap_usd }),
   });
+
+export type MissionOption = { key: string; label: string; tagline: string; available: boolean };
+
+export const listMissions = () => request<MissionOption[]>("/api/missions");
+
+export const answerCheckpoint = (runId: string, answer: { action: string; option?: string; note?: string }) =>
+  request<{ ok: boolean }>(`/api/runs/${runId}/checkpoint`, { method: "POST", body: JSON.stringify(answer) });
+
+export const sendMessage = (runId: string, text: string) =>
+  request<{ id: string }>(`/api/runs/${runId}/message`, { method: "POST", body: JSON.stringify({ text }) });

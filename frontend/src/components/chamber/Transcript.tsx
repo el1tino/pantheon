@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import Markdown from "@/components/Markdown";
 import { SeatView } from "@/lib/chamber/reducer";
-import { MODERATOR, Message, STANCE_COLOUR, STANCE_LABEL } from "@/lib/chamber/types";
+import { CLIENT, MODERATOR, Message, STANCE_COLOUR, STANCE_LABEL } from "@/lib/chamber/types";
 
 type Props = {
   seats: SeatView[];
@@ -11,36 +12,33 @@ type Props = {
   live: { seat: string; text: string } | null;
   thinking: string | null;
   tally: Record<string, number>;
+  scores: Record<string, number[]>;
 };
 
-function Markdownish({ text }: { text: string }) {
-  // Just enough for the moderator's summary: **bold** headings and "- " bullets.
+type OptionItem = { title?: string; summary?: string };
+
+const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+
+/** Long pieces of work collapse so the conversation stays readable. */
+function Collapsible({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const long = text.length > 420;
   return (
-    <div className="space-y-1.5">
-      {text.split("\n").filter((l) => l.trim()).map((line, i) => {
-        const bullet = line.trim().startsWith("- ");
-        const body = (bullet ? line.trim().slice(2) : line).split(/(\*\*[^*]+\*\*)/g).map((part, j) =>
-          part.startsWith("**") && part.endsWith("**") ? (
-            <strong key={j} className="font-semibold text-white">{part.slice(2, -2)}</strong>
-          ) : (
-            <span key={j}>{part}</span>
-          ),
-        );
-        return bullet ? (
-          <div key={i} className="flex gap-2 pl-1"><span className="text-white/40">•</span><span>{body}</span></div>
-        ) : (
-          <p key={i}>{body}</p>
-        );
-      })}
+    <div>
+      <div className={!open && long ? "relative max-h-40 overflow-hidden" : ""}>
+        <Markdown text={text} className="text-[13px] text-white/80" />
+        {!open && long && <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#0e0e12] to-transparent" />}
+      </div>
+      {long && (
+        <button onClick={() => setOpen(!open)} className="mt-1 text-[11.5px] text-white/45 hover:text-white">
+          {open ? "Show less" : "Show all"}
+        </button>
+      )}
     </div>
   );
 }
 
-function proposalText(p: Record<string, unknown>): { title: string; summary: string } {
-  return { title: String(p.title ?? "Proposal"), summary: p.summary ? String(p.summary) : "" };
-}
-
-export default function Transcript({ seats, messages, live, thinking, tally }: Props) {
+export default function Transcript({ seats, messages, live, thinking, tally, scores }: Props) {
   const scroller = useRef<HTMLDivElement>(null);
   const seatOf = (letter: string) => seats.find((s) => s.letter === letter);
   const byId = new Map(messages.map((m) => [m.id, m]));
@@ -48,14 +46,13 @@ export default function Transcript({ seats, messages, live, thinking, tally }: P
   useEffect(() => {
     const el = scroller.current;
     if (!el) return;
-    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 160;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200;
     if (nearBottom) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages.length, live?.text]);
 
   const header = (letter: string, extra?: React.ReactNode) => {
-    if (letter === MODERATOR) {
-      return <span className="text-[12px] font-medium text-white/85">Moderator</span>;
-    }
+    if (letter === MODERATOR) return <span className="text-[12px] font-medium text-white/85">Moderator</span>;
+    if (letter === CLIENT) return <span className="text-[12px] font-medium text-white">You · client</span>;
     const s = seatOf(letter);
     return (
       <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -72,27 +69,59 @@ export default function Transcript({ seats, messages, live, thinking, tally }: P
     );
   };
 
+  const optionScore = (id: string) =>
+    scores[id]?.length ? (
+      <span className="ml-2 font-mono text-[10.5px] text-amber-200/80">
+        {avg(scores[id]).toFixed(1)}★ · {scores[id].length}
+      </span>
+    ) : null;
+
+  // Option ids are numbered across the run in the order they were proposed.
+  const optionIds = new Map<string, string[]>();
+  let optionSeq = 0;
+  for (const m of messages) {
+    const opts = m.proposal?.options as OptionItem[] | undefined;
+    if (Array.isArray(opts)) optionIds.set(m.id, opts.map(() => `o${++optionSeq}`));
+  }
+
   return (
     <div ref={scroller} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
       {messages.length === 0 && !live && (
         <p className="pt-10 text-center text-[13px] text-white/30">The council is taking its seats…</p>
       )}
       {messages.map((m) => {
-        const colour = m.seat === MODERATOR ? "#ffffff" : seatOf(m.seat)?.colour ?? "#fff";
-        const target = m.reply_to ? byId.get(m.reply_to) : null;
-        if (m.seat === MODERATOR) {
+        if (m.seat === CLIENT) {
           return (
-            <motion.div
-              key={m.id}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-lg border border-white/15 bg-white/[0.04] p-3 text-[12.5px] leading-relaxed text-white/75"
-            >
-              <div className="mb-2 text-[10px] uppercase tracking-[0.25em] text-white/45">Moderator summary</div>
-              <Markdownish text={m.content} />
+            <motion.div key={m.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+              className="ml-6 rounded-lg border border-white/20 bg-white/[0.07] px-3 py-2 text-[13px] text-white">
+              <div className="mb-0.5 text-[10px] uppercase tracking-[0.2em] text-white/50">You · direct instruction</div>
+              {m.content}
             </motion.div>
           );
         }
+        if (m.seat === MODERATOR) {
+          const big = m.round === "summary" || m.round === "verdict";
+          return big ? (
+            <motion.div key={m.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+              className="rounded-lg border border-white/15 bg-white/[0.04] p-3 text-[12.5px] leading-relaxed text-white/75">
+              <div className="mb-2 text-[10px] uppercase tracking-[0.25em] text-white/45">
+                {m.round === "verdict" ? "The result" : "Moderator summary"}
+              </div>
+              <Collapsible text={m.content} />
+            </motion.div>
+          ) : (
+            <motion.div key={m.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              className="flex gap-2 px-1 text-[12px] italic leading-relaxed text-white/45">
+              <span className="not-italic text-white/30">◇</span>
+              <span>{m.content}</span>
+            </motion.div>
+          );
+        }
+        const colour = seatOf(m.seat)?.colour ?? "#fff";
+        const target = m.reply_to ? byId.get(m.reply_to) : null;
+        const opts = m.proposal?.options as OptionItem[] | undefined;
+        const nominated = m.proposal?.parts as string[] | undefined;
+        const work = m.stance === "report";
         return (
           <motion.div
             key={m.id}
@@ -109,24 +138,55 @@ export default function Transcript({ seats, messages, live, thinking, tally }: P
                   className="rounded px-1.5 text-[10px] font-medium uppercase tracking-[0.08em]"
                   style={{ color: STANCE_COLOUR[m.stance], background: `${STANCE_COLOUR[m.stance]}14` }}
                 >
-                  {STANCE_LABEL[m.stance] ?? m.stance}
+                  {work ? (m.round === "revise" ? "Revises" : "Writes") : STANCE_LABEL[m.stance] ?? m.stance}
                   {target && (
                     <span className="normal-case tracking-normal text-white/40">
-                      {" "}→ {target.seat === MODERATOR ? "moderator" : seatOf(target.seat)?.name} ({m.reply_to})
+                      {" "}→ {target.seat === MODERATOR ? "moderator" : target.seat === CLIENT ? "you" : seatOf(target.seat)?.name} ({m.reply_to})
                     </span>
                   )}
                 </span>,
               )}
               <span className="shrink-0 font-mono text-[10px] text-white/25">{m.id}</span>
             </div>
-            <p className="text-[13px] leading-relaxed text-white/80">{m.content}</p>
-            {m.proposal && (
+            {work ? <Collapsible text={m.content} /> : <p className="text-[13px] leading-relaxed text-white/80">{m.content}</p>}
+            {Array.isArray(opts) && (
+              <div className="mt-2 space-y-1.5">
+                {opts.map((o, i) => {
+                  const id = optionIds.get(m.id)?.[i] ?? "";
+                  return (
+                    <div key={i} className="rounded border px-2.5 py-1.5 text-[12px]" style={{ borderColor: `${colour}33`, background: `${colour}0d` }}>
+                      <span className="font-medium" style={{ color: colour }}>◆ {o.title}</span>
+                      {o.summary && <span className="text-white/60"> — {o.summary}</span>}
+                      <span className="ml-1 font-mono text-[10px] text-white/30">{id}</span>
+                      {optionScore(id)}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {Array.isArray(nominated) && (
+              <div className="mt-1.5 text-[11.5px] text-white/45">
+                {nominated.length ? `Puts itself forward for ${nominated.join(", ")}` : "Would rather review"}
+              </div>
+            )}
+            {m.proposal && !opts && !nominated && (
               <div className="mt-2 rounded border px-2.5 py-1.5 text-[12px]" style={{ borderColor: `${colour}33`, background: `${colour}0d` }}>
-                <span className="font-medium" style={{ color: colour }}>◆ {proposalText(m.proposal).title}</span>
-                {proposalText(m.proposal).summary && <span className="text-white/60"> — {proposalText(m.proposal).summary}</span>}
+                <span className="font-medium" style={{ color: colour }}>◆ {String(m.proposal.title ?? "Proposal")}</span>
+                {m.proposal.summary ? <span className="text-white/60"> — {String(m.proposal.summary)}</span> : null}
                 {tally[m.id] !== undefined && (
                   <span className="ml-2 font-mono text-[10.5px] text-white/50">{tally[m.id]} vote{tally[m.id] === 1 ? "" : "s"}</span>
                 )}
+              </div>
+            )}
+            {m.votes && m.votes.length > 0 && (
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {m.votes.map((v, i) => {
+                  const part = (v as { part?: string }).part;
+                  const label = part ? `${part} → ${v.target}` : m.round === "score" ? `${v.target} ${v.score}★` : v.target;
+                  return (
+                    <span key={i} className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-[10.5px] text-white/60">{label}</span>
+                  );
+                })}
               </div>
             )}
           </motion.div>
@@ -139,8 +199,10 @@ export default function Transcript({ seats, messages, live, thinking, tally }: P
             style={{ background: live.seat === MODERATOR ? "#fff" : seatOf(live.seat)?.colour }}
           />
           <div className="mb-1">{header(live.seat)}</div>
-          <p className="text-[13px] leading-relaxed text-white/70">
-            {live.text || <span className="text-white/35">{thinking === live.seat ? "thinking…" : ""}</span>}
+          <p className="max-h-48 overflow-hidden whitespace-pre-wrap text-[13px] leading-relaxed text-white/70">
+            {live.text.length > 600 ? "…" + live.text.slice(-600) : live.text || (
+              <span className="text-white/35">{thinking === live.seat ? "thinking…" : ""}</span>
+            )}
             <span className="ml-0.5 inline-block h-3.5 w-[2px] translate-y-0.5 animate-pulse bg-white/60" />
           </p>
         </div>

@@ -1,16 +1,19 @@
 # Pantheon
 
-A council of AI models from different providers debates your goal, splits the work and builds the result while you watch. The full spec is in [`PANTHEON_SPEC.md`](PANTHEON_SPEC.md). "Pantheon" is a placeholder name; it lives in `backend/app/config.py` (`APP_NAME`) and `frontend/src/lib/app.ts`.
+A council of AI models from different providers takes on anything people use AI for (a question, an email, a trip, a decision, a topic to learn, a business idea), debates it, splits the work by vote and delivers the result while you watch. The full spec is in [`PANTHEON_SPEC.md`](PANTHEON_SPEC.md). "Pantheon" is a placeholder name; it lives in `backend/app/config.py` (`APP_NAME`) and `frontend/src/lib/app.ts`.
 
 ## Status
 
 - Milestone 1 (Skeleton) is done: FastAPI, Next.js and SQLite, with one OpenRouter call going end to end.
 - Milestone 2 (Debate engine) is done: seats debate a goal in the terminal with round limits, a majority vote, a moderator summary and a hard budget cap, and the transcript is saved.
 - Milestone 3 (The Chamber, live) is done: convene a council in the browser and watch the debate play out live.
+- Milestone 4 (Missions, voting and checkpoints) is done: Ask, Write, Plan, Decide and Learn run end to end, and Launch runs to its idea checkpoint. Options are scored anonymously, you pick at checkpoints and review the result, and you can address the council at any time.
 
 No seat has a fixed role. Later in a run, each model puts itself forward for the work it's best at and the council votes on who does what.
 
 ![The Chamber, mid-debate](docs/milestone-3-chamber-live.png)
+
+![A Decide result](docs/milestone-4-result.png)
 
 ## Requirements
 
@@ -32,11 +35,33 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000, write a goal, pick the seats, set a budget cap and press **Convene the council**. The Chamber opens and the debate plays live. http://localhost:3000/test still sends a single test call.
+Open http://localhost:3000, pick a mission (or leave it on Auto), write a goal, pick the seats, set a budget cap and press **Convene the council**. The Chamber opens and the run plays live. http://localhost:3000/test still sends a single test call.
+
+### Missions
+
+| Mission | For | Phases (you decide at the bold ones) |
+|---|---|---|
+| Ask | Questions, advice | Answer → Debate → Verdict |
+| Write | Emails, essays, cover letters, posts | **Outline** → Draft → Critique → **Revise** |
+| Plan | Trips, events, meals, workouts | **Options** → Detail → **Check** |
+| Decide | Choosing between products or offers | Criteria → Research → Debate → **Recommendation** |
+| Learn | Understanding a topic | **Approach** → Lesson → Quiz |
+| Launch | A business from scratch | **Ideas** (the later phases come in milestones 5 and 6) |
+| Build, Create | Apps, images | Coming in milestones 5 and 6 |
+
+- **Auto:** the moderator reads the goal, picks the mission and says why.
+- **Options:** every seat proposes 1 to 3 options, and the others score them 1 to 5 without knowing who wrote them. No seat scores its own. You pick from the top 3, or ask for another round.
+- **No fixed roles:** the moderator splits the work into parts. Seats put themselves forward for parts, the others vote (never for themselves), and each winner writes its part. Each seat's badge shows the part it was voted into. If a seat's provider fails, its part goes to another seat.
+- **Critique and revise:** reviewers have to point at a specific passage in someone else's part, and the owner revises.
+- **Review:** you accept the result, or ask for changes and the council revises it. The result opens in the Chamber, with Copy and Download.
+- **Address the council:** type into the bar at the bottom at any time. Every seat sees your message as a direct instruction from the client.
+- **Health, legal and money questions:** the council says it isn't a professional and flags when you should see one.
+
+![Pick checkpoint](docs/milestone-4-pick.png)
 
 ### Practice without spending anything
 
-`backend/scripts/fake_openrouter.py` stands in for OpenRouter and streams scripted debates. Use it to work on the UI or film the Chamber for free:
+`backend/scripts/fake_openrouter.py` stands in for OpenRouter and streams scripted replies for every mission step (from `backend/app/devtools/council_script.py`). Use it to work on the UI or film the Chamber for free:
 
 ```bash
 # Terminal 1: the practice server
@@ -92,7 +117,7 @@ cd frontend && npm run lint && npm run build
 backend/app/config.py      APP_NAME + settings from .env
 backend/app/gateway/       OpenRouter client (OpenAI SDK)
 backend/app/db/            SQLite tables: runs, seats, messages, votes, tasks, artifacts, events
-backend/app/orchestrator/  debate rounds, voting, budget, reply format, file sandbox
+backend/app/orchestrator/  missions, debate rounds, scoring and role votes, checkpoints, budget, reply format, file sandbox
 backend/app/events/        ordered event log + in-process bus for the WebSocket
 backend/app/runs.py        starts runs in the background; pause, stop, budget answers
 backend/app/cli.py         terminal entry point

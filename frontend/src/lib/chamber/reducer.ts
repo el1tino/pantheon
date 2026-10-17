@@ -1,7 +1,9 @@
 // Turns the run's event stream into what the Chamber shows. Pure, so live runs,
 // late joiners and (later) Replay all go through the same code.
 
-import { ChamberEvent, Diff, MODERATOR, Message, SeatInfo } from "./types";
+import {
+  CLIENT, ChamberEvent, Checkpoint, Deliverable, Diff, MODERATOR, Message, RailPhase, SeatInfo,
+} from "./types";
 
 export type SeatStatus = "idle" | "thinking" | "speaking" | "absent";
 
@@ -29,9 +31,14 @@ export type ChamberState = {
   cost: { spent: number; cap: number; ratio: number; warning: boolean };
   core: { plus: number; minus: number };
   diffs: Diff[];
-  checkpoint: { kind: string; spent: number; cap: number; estimate: number } | null;
+  checkpoint: Checkpoint | null;
   decision: { id: string; decidedBy: string } | null;
   tally: Record<string, number>;
+  scores: Record<string, number[]>; // option id -> anonymous 1-5 scores
+  mission: { key: string; label: string; reason: string } | null;
+  phases: RailPhase[];
+  deliverable: Deliverable | null;
+  tasks: Record<string, { title: string; owner: string | null; status: string }>;
   heat: Heat;
   error: string | null;
   lastSeq: number;
@@ -54,6 +61,11 @@ export const initialState: ChamberState = {
   checkpoint: null,
   decision: null,
   tally: {},
+  scores: {},
+  mission: null,
+  phases: [{ key: "convene", label: "Convene", available: true }],
+  deliverable: null,
+  tasks: {},
   heat: {},
   error: null,
   lastSeq: 0,
@@ -101,6 +113,10 @@ export function reduce(state: ChamberState, ev: ChamberEvent): ChamberState {
         }));
         s.status = "running";
       }
+      if (p.mission) {
+        s.mission = { key: p.mission, label: p.mission_label ?? p.mission, reason: p.reason ?? "" };
+      }
+      if (p.phases) s.phases = p.phases as RailPhase[];
       if (p.phase) s.phase = p.phase;
       if ("round" in p) s.round = p.round;
       if (p.status) s.status = p.status;
@@ -144,6 +160,7 @@ export function reduce(state: ChamberState, ev: ChamberEvent): ChamberState {
       }
       const msg = p as unknown as Message;
       s.messages = [...s.messages, msg];
+      if (msg.seat === CLIENT) return s; // the user's words don't interrupt whoever is speaking
       s.live = null;
       if (msg.seat !== MODERATOR) {
         s.seats = updateSeat(takeFloor(s.seats, msg.seat), msg.seat, {
@@ -155,7 +172,7 @@ export function reduce(state: ChamberState, ev: ChamberEvent): ChamberState {
     }
     case "message_routed": {
       const to = p.to as string;
-      if (to !== "all" && p.from !== MODERATOR && (p.stance === "agree" || p.stance === "challenge")) {
+      if (to !== "all" && p.from !== MODERATOR && p.from !== CLIENT && (p.stance === "agree" || p.stance === "challenge")) {
         const key = pairKey(p.from, to);
         const h = s.heat[key] ?? { agree: 0, challenge: 0 };
         s.heat = { ...s.heat, [key]: { ...h, [p.stance]: h[p.stance as "agree" | "challenge"] + 1 } };
@@ -163,22 +180,42 @@ export function reduce(state: ChamberState, ev: ChamberEvent): ChamberState {
       return s;
     }
     case "vote_cast":
-      s.tally = { ...s.tally, [p.target]: (s.tally[p.target] ?? 0) + (p.score ?? 1) };
+      if (p.kind === "score") {
+        s.scores = { ...s.scores, [p.target]: [...(s.scores[p.target] ?? []), p.score] };
+      } else if (p.kind !== "role") {
+        s.tally = { ...s.tally, [p.target]: (s.tally[p.target] ?? 0) + (p.score ?? 1) };
+      }
+      return s;
+    case "task_updated": {
+      s.tasks = { ...s.tasks, [p.part]: { title: p.title, owner: p.owner_seat, status: p.status } };
+      // A seat's badge shows the parts the council voted it into.
+      s.seats = s.seats.map((seat) => {
+        const mine = Object.values(s.tasks).filter((t) => t.owner === seat.letter).map((t) => t.title);
+        const role = mine.length ? (mine.length > 1 ? `${mine[0]} +${mine.length - 1}` : mine[0]) : null;
+        return seat.role === role ? seat : { ...seat, role };
+      });
+      return s;
+    }
+    case "artifact_created":
+      if (p.kind === "deliverable") s.deliverable = { title: p.title, content: p.content, path: p.path };
       return s;
     case "cost_updated":
       s.cost = { spent: p.spent_usd, cap: p.cap_usd, ratio: p.ratio, warning: p.warning };
       return s;
     case "checkpoint_opened":
-      s.checkpoint = {
-        kind: p.kind,
-        spent: p.spent_usd,
-        cap: p.cap_usd,
-        estimate: p.next_call_estimate_usd,
-      };
-      s.status = "paused";
+      if (p.kind === "budget") {
+        s.checkpoint = { kind: "budget", spent: p.spent_usd, cap: p.cap_usd, estimate: p.next_call_estimate_usd };
+        s.status = "paused";
+      } else {
+        s.checkpoint = p as unknown as Checkpoint;
+        s.status = "checkpoint";
+        s.live = null;
+        s.seats = s.seats.map((x) => (x.status === "absent" ? x : { ...x, status: "idle" }));
+      }
       return s;
     case "checkpoint_resolved":
       s.checkpoint = null;
+      if (p.kind !== "budget" && p.action !== "stop") s.status = "running";
       if (p.action === "raise_cap") {
         s.cost = { ...s.cost, cap: p.cap_usd, ratio: s.cost.spent / p.cap_usd, warning: s.cost.spent / p.cap_usd >= 0.8 };
         s.status = "running";

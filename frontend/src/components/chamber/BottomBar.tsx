@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 type Props = {
   status: string;
   busy: boolean;
@@ -7,19 +9,48 @@ type Props = {
   onPause: () => void;
   onResume: () => void;
   onStop: () => void;
+  onSend: (text: string) => Promise<void>;
 };
 
-/** The user's seat. Addressing the council arrives with checkpoints; pause and stop work now. */
-export default function BottomBar({ status, busy, atCheckpoint, onPause, onResume, onStop }: Props) {
-  const active = status === "running" || status === "paused";
+/** The user's seat: address the council, pause, stop. */
+export default function BottomBar({ status, busy, atCheckpoint, onPause, onResume, onStop, onSend }: Props) {
+  const active = status === "running" || status === "paused" || status === "checkpoint";
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const send = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const t = text.trim();
+    if (!t) return;
+    setSending(true);
+    try {
+      await onSend(t);
+      setText("");
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <footer className="relative z-30 flex h-16 shrink-0 items-center gap-3 border-t border-white/[0.06] bg-black/30 px-4 backdrop-blur md:px-6">
       <span className="hidden h-2 w-2 shrink-0 rounded-full bg-white/80 shadow-[0_0_10px_white] md:block" title="You" />
-      <input
-        disabled
-        placeholder="Address the council (coming soon)"
-        className="h-10 min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 text-[13px] text-white placeholder:text-white/25 disabled:cursor-not-allowed"
-      />
+      <form onSubmit={send} className="flex min-w-0 flex-1 items-center gap-2">
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          disabled={!active || sending}
+          maxLength={2000}
+          placeholder={active ? "Address the council…" : "The council has adjourned"}
+          className="h-10 min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.03] px-3 text-[13px] text-white outline-none placeholder:text-white/25 focus:border-white/30 disabled:cursor-not-allowed"
+        />
+        <button
+          type="submit"
+          disabled={!active || sending || !text.trim()}
+          className="hidden h-10 rounded-lg bg-white/90 px-4 text-[13px] font-medium text-black disabled:opacity-25 sm:block"
+        >
+          Send
+        </button>
+      </form>
       {status === "paused" ? (
         <button
           disabled={busy || !active || atCheckpoint}
@@ -30,7 +61,7 @@ export default function BottomBar({ status, busy, atCheckpoint, onPause, onResum
         </button>
       ) : (
         <button
-          disabled={busy || !active}
+          disabled={busy || status !== "running"}
           onClick={onPause}
           className="h-10 rounded-lg border border-white/15 px-4 text-[13px] text-white/85 hover:border-white/35 disabled:opacity-30"
         >

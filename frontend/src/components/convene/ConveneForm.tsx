@@ -5,16 +5,28 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { APP_NAME } from "@/lib/app";
-import { RunSummary, SeatOption, createRun, listRuns, listSeats } from "@/lib/api";
+import { MissionOption, RunSummary, SeatOption, createRun, listMissions, listRuns, listSeats } from "@/lib/api";
 
 const DEFAULT_SEATS = ["A", "B", "C", "D"];
+
+const EXAMPLES: Record<string, string> = {
+  auto: "Anything you'd ask an AI: a question, an email, a trip, a decision, a topic to learn…",
+  ask: "Is it worth paying off my student loan early, or should I invest instead?",
+  write: "Write a warm but firm email asking my landlord to fix the heating this week.",
+  plan: "Plan a 3-day trip to Lisbon in May for two people, mid-range budget.",
+  decide: "Should I buy a Kindle Paperwhite or a Kobo Clara?",
+  learn: "Help me understand how compound interest works, for a test on Friday.",
+  launch: "Come up with a business idea we could launch in a month, and name it.",
+};
 
 export default function ConveneForm() {
   const router = useRouter();
   const [seats, setSeats] = useState<SeatOption[]>([]);
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [picked, setPicked] = useState<string[]>(DEFAULT_SEATS);
-  const [goal, setGoal] = useState("Come up with a business idea we could launch in a month, and name it.");
+  const [missions, setMissions] = useState<MissionOption[]>([]);
+  const [mission, setMission] = useState("auto");
+  const [goal, setGoal] = useState("");
   const [rounds, setRounds] = useState(3);
   const [budget, setBudget] = useState("0.25");
   const [cheap, setCheap] = useState(true);
@@ -24,6 +36,7 @@ export default function ConveneForm() {
   useEffect(() => {
     listSeats().then(setSeats).catch((e) => setError(`Can't reach the backend: ${e.message}`));
     listRuns().then(setRuns).catch(() => {});
+    listMissions().then(setMissions).catch(() => {});
   }, []);
 
   const toggle = (letter: string) =>
@@ -35,7 +48,7 @@ export default function ConveneForm() {
     setError(null);
     try {
       const { run_id } = await createRun({
-        goal: goal.trim(), seats: picked, budget_usd: Number(budget), max_rounds: rounds, cheap,
+        goal: goal.trim(), seats: picked, budget_usd: Number(budget), max_rounds: rounds, cheap, mission,
       });
       router.push(`/chamber/${run_id}`);
     } catch (err) {
@@ -58,13 +71,48 @@ export default function ConveneForm() {
         <p className="mt-3 text-center text-2xl font-medium tracking-tight text-white md:text-3xl">Convene the council</p>
 
         <form onSubmit={submit} className="mt-10 space-y-8">
+          <div>
+            <span className="mb-2 block text-[11px] uppercase tracking-[0.2em] text-white/40">Mission</span>
+            <div className="flex flex-wrap gap-2">
+              {[{ key: "auto", label: "Auto", tagline: "The moderator reads your goal and picks", available: true }, ...missions].map((m) => {
+                const on = mission === m.key;
+                return (
+                  <button
+                    type="button"
+                    key={m.key}
+                    disabled={!m.available}
+                    onClick={() => setMission(m.key)}
+                    aria-pressed={on}
+                    title={m.available ? m.tagline : `${m.tagline} (coming soon)`}
+                    className={`rounded-full border px-3.5 py-1.5 text-[13px] transition-all duration-300 ${
+                      on
+                        ? "border-amber-200/60 bg-amber-200/10 text-amber-100 shadow-[0_0_20px_rgba(253,230,138,0.12)]"
+                        : m.available
+                          ? "border-white/10 text-white/60 hover:border-white/25 hover:text-white/85"
+                          : "cursor-not-allowed border-white/[0.05] text-white/20"
+                    }`}
+                  >
+                    {m.label}
+                    {!m.available && <span className="ml-1.5 text-[10px] uppercase tracking-wider">soon</span>}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-[12px] text-white/35">
+              {mission === "auto"
+                ? "The moderator reads your goal, picks the mission and says why."
+                : missions.find((m) => m.key === mission)?.tagline}
+            </p>
+          </div>
+
           <label className="block">
             <span className="mb-2 block text-[11px] uppercase tracking-[0.2em] text-white/40">The goal</span>
             <textarea
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
+              placeholder={EXAMPLES[mission] ?? EXAMPLES.auto}
               rows={3}
-              className="w-full resize-y rounded-xl border border-white/10 bg-white/[0.03] p-4 text-[15px] leading-relaxed text-white outline-none transition-colors focus:border-white/30"
+              className="w-full resize-y rounded-xl border border-white/10 bg-white/[0.03] p-4 text-[15px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/25 focus:border-white/30"
             />
           </label>
 

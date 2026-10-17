@@ -12,7 +12,8 @@ from app.db.session import get_engine
 from app.events import bus
 from app.gateway import openrouter
 from app.orchestrator.budget import Budget, BudgetExceeded
-from app.orchestrator.debate import ChatFn, Debate, RunControl
+from app.orchestrator.debate import ChatFn, RunControl
+from app.orchestrator.missions import MissionRun
 from app.orchestrator.seats import SeatConfig
 
 log = logging.getLogger(__name__)
@@ -35,15 +36,23 @@ async def get_prices() -> dict[str, tuple[float, float]]:
 
 @dataclass
 class ActiveRun:
-    debate: Debate
+    debate: MissionRun
     control: RunControl
     task: asyncio.Task | None = None
     budget_answer: asyncio.Future | None = field(default=None)
+    # The checkpoint the run is waiting at, if any: (kind, payload, future for the answer).
+    checkpoint: tuple[str, dict, asyncio.Future] | None = None
 
     def answer_budget(self, new_cap: float | None) -> bool:
         if self.budget_answer is None or self.budget_answer.done():
             return False
         self.budget_answer.set_result(new_cap)
+        return True
+
+    def answer_checkpoint(self, answer: dict) -> bool:
+        if self.checkpoint is None or self.checkpoint[2].done():
+            return False
+        self.checkpoint[2].set_result(answer)
         return True
 
 
@@ -60,6 +69,7 @@ async def start_run(
     *,
     budget_usd: float,
     max_rounds: int,
+    mission: str = "auto",
     chat: ChatFn | None = None,
 ) -> str:
     prices = await get_prices()
@@ -72,9 +82,19 @@ async def start_run(
         active.budget_answer = asyncio.get_running_loop().create_future()
         return await active.budget_answer
 
-    debate = Debate(
-        session, goal, seats, budget_usd=budget_usd, max_rounds=max_rounds, phase="ideas",
-        chat=chat, prices=prices, on_budget_pause=ask_budget, control=control,
+    async def ask_checkpoint(kind: str, payload: dict) -> dict:
+        assert active is not None
+        future = asyncio.get_running_loop().create_future()
+        active.checkpoint = (kind, payload, future)
+        try:
+            return await future
+        finally:
+            active.checkpoint = None
+
+    debate = MissionRun(
+        session, goal, seats, mission=mission, budget_usd=budget_usd, max_rounds=max_rounds,
+        chat=chat, prices=prices, on_budget_pause=ask_budget, on_checkpoint=ask_checkpoint,
+        control=control,
     )
     debate.log.subscribe(bus.publish)
     active = ActiveRun(debate=debate, control=control)
@@ -83,7 +103,7 @@ async def start_run(
 
     async def runner() -> None:
         try:
-            await debate.run_debate()
+            await debate.run_mission()
         except Exception as exc:  # keep the server alive and tell the UI
             log.exception("Run %s failed", run_id)
             debate.run.status = "failed"
@@ -104,6 +124,7 @@ def stop(run_id: str) -> bool:
         return False
     active.control.stop()
     active.answer_budget(None)  # a run waiting at the budget card stops too
+    active.answer_checkpoint({"action": "stop"})  # and one waiting at a checkpoint
     return True
 
 

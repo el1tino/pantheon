@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     max_rounds: int = 3
     default_budget_usd: float = 0.25
     reply_max_tokens: int = 500
+    make_max_tokens: int = 1400  # a seat writing its part of the work
+    verdict_max_tokens: int = 2000  # the moderator assembling the deliverable
     call_timeout_s: float = 90.0
     # Used to estimate cost when OpenRouter's price list is unavailable.
     # Deliberately high so estimates err on the safe side (USD per 1M tokens).

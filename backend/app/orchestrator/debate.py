@@ -44,6 +44,7 @@ PauseFn = Callable[[Budget, BudgetExceeded], Awaitable[float | None]]
 Mode = Literal["open", "discuss", "vote"]
 
 MODERATOR = "moderator"
+CLIENT = "client"  # the user, speaking into the council chat
 TOKEN_FLUSH_S = 0.066  # batch streamed text into ~15 token events per second
 DIFF_FEED_MAX_LINES = 40
 
@@ -92,6 +93,10 @@ class Entry:
     votes: list[dict[str, Any]] | None = None
     tokens: int = 0
     cost_usd: float = 0.0
+    phase: str = ""
+
+
+Validator = Callable[[AgentReply], None]
 
 
 @dataclass
@@ -125,6 +130,7 @@ class Debate:
         moderator_model: str | None = None,
         control: RunControl | None = None,
         stream_tokens: bool = True,
+        mission_brief: str = "",
     ):
         settings = get_settings()
         if not seats:
@@ -139,6 +145,7 @@ class Debate:
         self.on_budget_pause = on_budget_pause
         self.control = control or RunControl()
         self.stream_tokens = stream_tokens
+        self.mission_brief = mission_brief
         self.moderator_model = moderator_model or settings.moderator_model
         self.reply_max_tokens = settings.reply_max_tokens
         self.timeout = settings.call_timeout_s
@@ -251,20 +258,30 @@ class Debate:
             "Nobody has a fixed role. Later the council will decide who does what: each member "
             "puts itself forward for the work it is best at and the others vote. Show your "
             "strengths through what you contribute now.\n"
-            "Speak in your own voice and be concrete. Keep each message under 120 words. "
-            "Challenge when you have a real reason; agree when a proposal is good enough.\n\n"
+            + (f"{self.mission_brief}\n" if self.mission_brief else "")
+            + "Speak in your own voice and be concrete. Keep each message under 120 words "
+            "unless you are asked to write a piece of work. "
+            "Challenge when you have a real reason; agree when a proposal is good enough.\n"
+            "Messages from CLIENT are direct instructions from the person you work for: follow them.\n"
+            "On health, legal or money topics, say plainly that you are not a professional, "
+            "flag when the client should see one, and never present a guess as fact.\n\n"
             f"{REPLY_FORMAT_HELP}"
         )
 
     def _render_entry(self, e: Entry) -> str:
         if e.seat == MODERATOR:
             head = f"[{e.id}] Moderator"
+        elif e.seat == CLIENT:
+            head = f"[{e.id}] CLIENT (direct instruction)"
         else:
             s = self.seat_by_letter[e.seat]
             head = f"[{e.id}] {s.letter} {s.name} ({e.stance}"
             head += f" -> {e.reply_to})" if e.reply_to else ")"
         lines = [f"{head}: {e.content}"]
-        if e.proposal:
+        if e.proposal and e.proposal.get("options"):
+            for i, opt in enumerate(e.proposal["options"]):
+                lines.append(f"     OPTION: {_proposal_title(opt)}")
+        elif e.proposal:
             lines.append(f"     PROPOSAL: {_proposal_title(e.proposal)}")
         if e.votes:
             lines.append("     VOTES: " + ", ".join(v["target"] for v in e.votes))
@@ -299,12 +316,11 @@ class Debate:
             'votes [{"target": "<id>", "score": 1}], and explain your choice in content.'
         )
 
-    def _messages(self, seat: SeatConfig, round_: int | str, mode: Mode, candidates: list[Entry]):
-        label = "VOTE ROUND" if mode == "vote" else f"ROUND {round_} of {self.max_rounds}"
-        user = (
-            f"GOAL: {self.goal}\n\nTRANSCRIPT SO FAR:\n{self._transcript_text()}\n\n"
-            f"{label}. {self._instruction(seat, mode, candidates)}"
-        )
+    def _messages(self, seat: SeatConfig, label: str, instruction: str, context: str | None = None):
+        """Prompt for one seat. `context` replaces the transcript (e.g. for anonymous scoring)."""
+        body = self._transcript_text() if context is None else context
+        heading = "TRANSCRIPT SO FAR" if context is None else "CONTEXT"
+        user = f"GOAL: {self.goal}\n\n{heading}:\n{body}\n\n{label}. {instruction}"
         return [
             {"role": "system", "content": self._system_prompt(seat)},
             {"role": "user", "content": user},
@@ -388,13 +404,15 @@ class Debate:
         return on_delta, flush
 
     async def _call(
-        self, who: str, model: str, messages: list[dict[str, str]], stream: str | None = None
+        self, who: str, model: str, messages: list[dict[str, str]], stream: str | None = None,
+        max_tokens: int | None = None,
     ) -> str | None:
         """One model call under the budget. Returns None if the provider failed.
 
         stream="json" types out the reply's "content" field live; stream="text" the raw text.
         """
-        estimate = self.budget.estimate(model, messages, self.reply_max_tokens)
+        max_tokens = max_tokens or self.reply_max_tokens
+        estimate = self.budget.estimate(model, messages, max_tokens)
         while True:
             try:
                 self.budget.check(estimate)
@@ -407,7 +425,7 @@ class Debate:
         kwargs = {"on_delta": on_delta} if on_delta else {}
         try:
             res = await self.chat(
-                messages, model=model, max_tokens=self.reply_max_tokens, timeout=self.timeout,
+                messages, model=model, max_tokens=max_tokens, timeout=self.timeout,
                 **kwargs,
             )
             flush()
@@ -450,19 +468,41 @@ class Debate:
     async def _turn(
         self, seat: SeatConfig, round_: int | str, mode: Mode, candidates: list[Entry] = ()
     ) -> Entry | None:
+        """One debate turn: open proposal, discussion reply or vote."""
+        label = "VOTE ROUND" if mode == "vote" else f"ROUND {round_} of {self.max_rounds}"
+        cands = list(candidates)
+        return await self._ask(
+            seat, round_, label, self._instruction(seat, mode, cands),
+            lambda reply: self._validate(reply, seat, mode, cands),
+        )
+
+    async def _ask(
+        self,
+        seat: SeatConfig,
+        round_: int | str,
+        label: str,
+        instruction: str,
+        validate: Validator,
+        *,
+        context: str | None = None,
+        max_tokens: int | None = None,
+        record: bool = True,
+    ) -> Entry | None:
         """Ask one seat for a reply; retry once with the error shown, then drop it."""
         await self._gate()
         self._turn_tokens, self._turn_cost = 0, 0.0
-        messages = self._messages(seat, round_, mode, list(candidates))
+        messages = self._messages(seat, label, instruction, context)
         error = ""
         for attempt in (1, 2):
-            text = await self._call(seat.letter, seat.model_id, messages, stream="json")
+            text = await self._call(
+                seat.letter, seat.model_id, messages, stream="json", max_tokens=max_tokens
+            )
             if text is None:
                 return None
             try:
                 reply = parse_reply(text)
-                self._validate(reply, seat, mode, list(candidates))
-                return self._add(seat.letter, round_, reply)
+                validate(reply)
+                return self._add(seat.letter, round_, reply, record=record)
             except ReplyError as exc:
                 error = str(exc)
                 if attempt == 1:
@@ -478,12 +518,12 @@ class Debate:
 
     # ------------------------------------------------------------------ recording
 
-    def _add(self, seat: str, round_: int | str, reply: AgentReply) -> Entry:
+    def _add(self, seat: str, round_: int | str, reply: AgentReply, record: bool = True) -> Entry:
         entry = Entry(
             id=f"m{len(self.entries) + 1}", seat=seat, round=round_, stance=reply.stance.value,
             content=reply.content, reply_to=reply.reply_to, proposal=reply.proposal,
             votes=[v.model_dump() for v in reply.votes] if reply.votes else None,
-            tokens=self._turn_tokens, cost_usd=self._turn_cost,
+            tokens=self._turn_tokens, cost_usd=self._turn_cost, phase=self.phase,
         )
         self.entries.append(entry)
         self.by_id[entry.id] = entry
@@ -496,22 +536,49 @@ class Debate:
         )
         self.session.commit()
         self.log.emit("message_done", **asdict(entry))
-        target = self.by_id[entry.reply_to].seat if entry.reply_to else "all"
-        if target in (seat, MODERATOR):
+        self._route(entry)
+        if record:
+            self._record_work(entry)
+        return entry
+
+    def _route(self, entry: Entry) -> None:
+        """message_routed drives the Chamber's lines: one per vote target, else one per message."""
+        if entry.votes and entry.stance == Stance.VOTE:
+            for v in entry.votes:
+                target = self._vote_target_seat(v)
+                if target and target != entry.seat:
+                    self.log.emit(
+                        "message_routed", message_id=entry.id, **{"from": entry.seat}, to=target,
+                        stance=entry.stance,
+                    )
+            return
+        target = self.by_id[entry.reply_to].seat if entry.reply_to in self.by_id else "all"
+        if target in (entry.seat, MODERATOR, CLIENT):
             target = "all"
         self.log.emit(
-            "message_routed", message_id=entry.id, **{"from": seat}, to=target, stance=entry.stance
+            "message_routed", message_id=entry.id, **{"from": entry.seat}, to=target,
+            stance=entry.stance,
         )
-        self._record_work(entry)
-        return entry
+
+    def _vote_target_seat(self, vote: dict[str, Any]) -> str | None:
+        target = vote.get("target")
+        if target in self.by_id:
+            return self.by_id[target].seat
+        return None
+
+    def add_client_message(self, text: str) -> Entry:
+        """The user spoke into the council chat. Every later prompt includes it."""
+        self._turn_tokens, self._turn_cost = 0, 0.0
+        return self._add(CLIENT, "client", AgentReply(stance=Stance.REPORT, content=text), record=False)
 
     def _record_work(self, entry: Entry) -> None:
         """Write what a message produced into the run folder: a seat's current proposal,
         its running notes, or the moderator's decision."""
         if entry.seat == MODERATOR:
-            self._write_file(MODERATOR, "decision.md", entry.content.rstrip() + "\n")
+            if entry.round == "summary":
+                self._write_file(MODERATOR, "decision.md", entry.content.rstrip() + "\n")
             return
-        if entry.stance == Stance.PROPOSE and entry.proposal:
+        if entry.stance == Stance.PROPOSE and entry.proposal and entry.proposal.get("title"):
             title = entry.proposal.get("title") or "Proposal"
             body = [f"# {title}", ""]
             for key, value in entry.proposal.items():
@@ -564,7 +631,8 @@ class Debate:
             if e is None:
                 return None
             if e.stance == Stance.PROPOSE:
-                return e
+                # Only debate proposals count, not option lists or nominations for parts.
+                return e if isinstance(e.round, int) and e.proposal and e.proposal.get("title") else None
             entry_id = e.reply_to
         return None
 
@@ -579,15 +647,17 @@ class Debate:
             return None
         return backed[0]
 
-    def _candidates(self) -> list[Entry]:
+    def _candidates(self, phases: set[str] | None = None) -> list[Entry]:
+        """Latest debate proposal per seat (debate rounds only, optionally limited to phases)."""
         latest: dict[str, Entry] = {}
         for e in self.entries:
-            if e.stance == Stance.PROPOSE:
-                latest[e.seat] = e
+            if e.stance == Stance.PROPOSE and isinstance(e.round, int) and e.proposal:
+                if phases is None or e.phase in phases:
+                    latest[e.seat] = e
         return list(latest.values())
 
-    async def _vote(self) -> tuple[Entry | None, str]:
-        candidates = self._candidates()
+    async def _vote(self, phases: set[str] | None = None) -> tuple[Entry | None, str]:
+        candidates = self._candidates(phases)
         if not candidates:
             return None, "none"
         self.log.emit("phase_changed", phase=self.phase, round="vote")
@@ -690,28 +760,38 @@ class Debate:
         for s in self.seats:
             mark = " (absent)" if s.letter in self.absent else ""
             out.append(f"- **{s.letter} · {s.name}**{mark} · {s.provider} · `{s.model_id}`")
-        current: int | str | None = None
+        current: tuple[str, int | str] | None = None
         for e in result.entries:
-            if e.round != current:
-                current = e.round
+            if (e.phase, e.round) != current:
+                current = (e.phase, e.round)
                 title = {"vote": "Vote", "summary": "Moderator summary"}.get(
-                    str(current), f"Round {current}"
+                    str(e.round), f"Round {e.round}" if isinstance(e.round, int) else str(e.round).capitalize()
                 )
+                if e.phase and e.phase != "debate":
+                    title = f"{e.phase.capitalize()} · {title}"
                 out += ["", f"## {title}", ""]
             if e.seat == MODERATOR:
                 out.append(e.content)
+                continue
+            if e.seat == CLIENT:
+                out.append(f"**[{e.id}] Client:** {e.content}")
+                out.append("")
                 continue
             s = self.seat_by_letter[e.seat]
             to = f" → {e.reply_to}" if e.reply_to else ""
             out.append(f"**[{e.id}] {s.letter} · {s.name}** — _{e.stance}{to}_  ")
             out.append(e.content)
-            if e.proposal:
+            if e.proposal and isinstance(e.proposal.get("options"), list):
+                for opt in e.proposal["options"]:
+                    out.append(f"> **Option:** {_proposal_title(opt)}")
+            elif e.proposal:
                 out.append(f"> **Proposal:** {_proposal_title(e.proposal)}")
             out.append("")
         if result.tally:
             out += ["", "## Tally", ""]
             for cid, n in sorted(result.tally.items(), key=lambda kv: -kv[1]):
-                out.append(f"- {cid} ({self.by_id[cid].seat}): {n}")
+                seat = self.by_id[cid].seat if cid in self.by_id else self._vote_target_seat({"target": cid})
+                out.append(f"- {cid} ({seat or '?'}): {n}")
         return "\n".join(out).rstrip() + "\n"
 
 

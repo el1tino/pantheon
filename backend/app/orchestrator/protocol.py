@@ -20,6 +20,7 @@ class Stance(StrEnum):
 class VoteItem(BaseModel):
     target: str
     score: int = 1
+    part: str | None = None  # role votes: which part of the work this vote is for
 
     @field_validator("target", mode="before")
     @classmethod

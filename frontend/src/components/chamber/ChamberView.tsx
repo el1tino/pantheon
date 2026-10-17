@@ -3,15 +3,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, useReducedMotion } from "framer-motion";
-import { answerBudget, controlRun } from "@/lib/api";
+import { answerBudget, answerCheckpoint, controlRun, sendMessage } from "@/lib/api";
 import { computeLayout } from "@/lib/chamber/geometry";
 import { useChamber } from "@/lib/chamber/useChamber";
 import BottomBar from "./BottomBar";
 import BudgetCard from "./BudgetCard";
+import CheckpointCard from "./CheckpointCard";
 import Core from "./Core";
 import DiffFeed from "./DiffFeed";
 import Seat from "./Seat";
 import TopBar from "./TopBar";
+import ResultPanel from "./ResultPanel";
 import Transcript from "./Transcript";
 
 // PixiJS needs the browser.
@@ -21,6 +23,7 @@ const DECIDED_BY: Record<string, string> = {
   consensus: "consensus",
   vote: "majority vote",
   moderator: "the moderator",
+  client: "you",
 };
 
 export default function ChamberView({ runId }: { runId: string }) {
@@ -33,6 +36,8 @@ export default function ChamberView({ runId }: { runId: string }) {
   const [diffOpen, setDiffOpen] = useState(false);
   const [flash, setFlash] = useState<{ key: number; kind: "add" | "remove" } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [resultOpen, setResultOpen] = useState(false);
+  const shownResult = useRef<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -75,9 +80,21 @@ export default function ChamberView({ runId }: { runId: string }) {
     const m = state.messages.find((x) => x.id === state.decision!.id);
     if (!m) return null;
     const seat = state.seats.find((s) => s.letter === m.seat);
-    const title = String(m.proposal?.title ?? m.content.slice(0, 80));
+    // For a picked option the moderator's "chose" note carries the title.
+    const picked = [...state.messages].reverse().find((x) => x.seat === "moderator" && x.round === "pick");
+    const pickedTitle = picked?.content.match(/chose o\d+: (.*?)\./)?.[1];
+    const title = pickedTitle ?? String(m.proposal?.title ?? m.content.slice(0, 80));
     return { title, colour: seat?.colour ?? "#fff", by: DECIDED_BY[state.decision.decidedBy] ?? state.decision.decidedBy };
   }, [state.decision, state.messages, state.seats]);
+
+  // Open the result once when the run finishes with a deliverable.
+  useEffect(() => {
+    if (state.status === "done" && state.deliverable && state.caughtUp && shownResult.current !== runId) {
+      shownResult.current = runId;
+      const t = setTimeout(() => setResultOpen(true), 1600);
+      return () => clearTimeout(t);
+    }
+  }, [state.status, state.deliverable, state.caughtUp, runId]);
 
   const thinking = state.seats.find((s) => s.status === "thinking")?.letter ?? (state.live?.seat ?? null);
   const dim = !!state.checkpoint;
@@ -97,7 +114,7 @@ export default function ChamberView({ runId }: { runId: string }) {
           {"⟩"}
         </button>
       </div>
-      <Transcript seats={state.seats} messages={state.messages} live={state.live} thinking={thinking} tally={state.tally} />
+      <Transcript seats={state.seats} messages={state.messages} live={state.live} thinking={thinking} tally={state.tally} scores={state.scores} />
     </>
   );
 
@@ -105,6 +122,8 @@ export default function ChamberView({ runId }: { runId: string }) {
     <div className="flex h-dvh flex-col overflow-hidden">
       <TopBar
         goal={state.goal}
+        mission={state.mission?.label ?? null}
+        phases={state.phases}
         phase={state.phase}
         round={state.round}
         maxRounds={state.maxRounds}
@@ -188,6 +207,31 @@ export default function ChamberView({ runId }: { runId: string }) {
             {diffOpen && <DiffFeed diffs={state.diffs} seats={state.seats} onClose={() => setDiffOpen(false)} />}
           </AnimatePresence>
 
+          {state.deliverable && !resultOpen && !state.checkpoint && (
+            <button
+              onClick={() => setResultOpen(true)}
+              className="absolute bottom-4 right-4 z-40 rounded-full border border-amber-200/30 bg-black/60 px-4 py-1.5 text-[12px] text-amber-100/90 shadow-[0_0_24px_rgba(253,230,138,0.12)] hover:border-amber-200/60"
+            >
+              View result · {state.deliverable.title}
+            </button>
+          )}
+          <AnimatePresence>
+            {resultOpen && state.deliverable && (
+              <ResultPanel runId={runId} deliverable={state.deliverable} onClose={() => setResultOpen(false)} />
+            )}
+          </AnimatePresence>
+
+          {(state.checkpoint?.kind === "pick" || state.checkpoint?.kind === "review") && (
+            <CheckpointCard
+              key={`${state.checkpoint.kind}-${state.lastSeq}`}
+              checkpoint={state.checkpoint}
+              seats={state.seats}
+              onAnswer={async (answer) => {
+                await answerCheckpoint(runId, answer);
+              }}
+            />
+          )}
+
           {state.checkpoint?.kind === "budget" && (
             <BudgetCard
               spent={state.checkpoint.spent}
@@ -225,7 +269,15 @@ export default function ChamberView({ runId }: { runId: string }) {
       <BottomBar
         status={state.status}
         busy={busy}
-        atCheckpoint={!!state.checkpoint}
+        atCheckpoint={state.checkpoint?.kind === "budget"}
+        onSend={async (text) => {
+          setActionError(null);
+          try {
+            await sendMessage(runId, text);
+          } catch (e) {
+            setActionError(e instanceof Error ? e.message : String(e));
+          }
+        }}
         onPause={() => act(() => controlRun(runId, "pause"))}
         onResume={() => act(() => controlRun(runId, "resume"))}
         onStop={() => act(() => controlRun(runId, "stop"))}

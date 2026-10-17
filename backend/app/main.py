@@ -5,6 +5,7 @@ from typing import Literal
 
 from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
@@ -14,6 +15,8 @@ from app.db import Event, Message, Run, get_session, init_db
 from app.db.session import get_engine
 from app.events import bus
 from app.gateway import openrouter
+from app.orchestrator import sandbox
+from app.orchestrator.missions import MISSIONS, public_missions
 from app.orchestrator.seats import load_seats, pick_seats
 
 
@@ -110,6 +113,12 @@ class RunIn(BaseModel):
     budget_usd: float = Field(gt=0, le=50)
     max_rounds: int = Field(default=3, ge=1, le=6)
     cheap: bool = False  # every seat uses the cheap default model
+    mission: str = "auto"
+
+
+@app.get("/api/missions")
+def list_missions() -> list[dict]:
+    return public_missions()
 
 
 @app.post("/api/runs")
@@ -118,10 +127,13 @@ async def create_run(body: RunIn) -> dict:
         seats = pick_seats([x.strip().upper() for x in body.seats])
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if body.mission != "auto" and (body.mission not in MISSIONS or not MISSIONS[body.mission].available):
+        raise HTTPException(status_code=422, detail=f"Mission not available: {body.mission}")
     if body.cheap:
         seats = [s.model_copy(update={"model_id": runs.cheap_model()}) for s in seats]
     run_id = await runs.start_run(
-        body.goal, seats, budget_usd=body.budget_usd, max_rounds=body.max_rounds
+        body.goal, seats, budget_usd=body.budget_usd, max_rounds=body.max_rounds,
+        mission=body.mission,
     )
     return {"run_id": run_id}
 
@@ -183,6 +195,68 @@ def answer_budget(run_id: str, body: BudgetIn) -> dict:
     if not active.answer_budget(body.cap_usd if body.action == "raise" else None):
         raise HTTPException(status_code=409, detail="The run is not waiting at the budget cap")
     return {"ok": True}
+
+
+class CheckpointIn(BaseModel):
+    action: Literal["pick", "another_round", "accept", "changes"]
+    option: str | None = None
+    note: str | None = Field(default=None, max_length=2000)
+
+
+@app.post("/api/runs/{run_id}/checkpoint")
+def answer_checkpoint(run_id: str, body: CheckpointIn) -> dict:
+    active = runs.get_active(run_id)
+    if not active or not active.checkpoint:
+        raise HTTPException(status_code=409, detail="The run is not waiting at a checkpoint")
+    kind, payload, _ = active.checkpoint
+    if kind == "pick":
+        if body.action == "pick":
+            if body.option not in {o["id"] for o in payload["options"]}:
+                raise HTTPException(status_code=422, detail="Pick one of the options shown")
+        elif body.action != "another_round" or not payload.get("can_retry"):
+            raise HTTPException(status_code=422, detail="Pick an option")
+    elif kind == "review":
+        if body.action not in ("accept", "changes"):
+            raise HTTPException(status_code=422, detail="Accept or request changes")
+        if body.action == "changes" and not (body.note or "").strip():
+            raise HTTPException(status_code=422, detail="Say what should change")
+    answer = {"action": body.action}
+    if body.option:
+        answer["option"] = body.option
+    if body.note:
+        answer["note"] = body.note.strip()
+    active.answer_checkpoint(answer)
+    return {"ok": True}
+
+
+class MessageIn(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+
+
+@app.post("/api/runs/{run_id}/message")
+def send_message(run_id: str, body: MessageIn) -> dict:
+    """The user addresses the council. Seats see it as a direct instruction from the client."""
+    active = runs.get_active(run_id)
+    if not active:
+        raise HTTPException(status_code=409, detail="Run is not in progress")
+    entry = active.debate.add_client_message(body.text.strip())
+    return {"id": entry.id}
+
+
+@app.get("/api/runs/{run_id}/files/{path:path}", response_class=PlainTextResponse)
+def run_file(run_id: str, path: str, session: Session = Depends(get_session)):
+    if not session.get(Run, run_id):
+        raise HTTPException(status_code=404, detail="Run not found")
+    try:
+        target = sandbox.safe_path(run_id, path)
+    except sandbox.SandboxError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+    return PlainTextResponse(
+        target.read_text(encoding="utf-8"), media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{target.name}"'},
+    )
 
 
 @app.websocket("/api/runs/{run_id}/ws")
