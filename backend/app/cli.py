@@ -146,7 +146,7 @@ async def _debate(args: argparse.Namespace) -> int:
                 (f"{APP_NAME} council", "bold"), f"  run {debate.run_id}\n\n",
                 ("Goal: ", "bold"), args.goal, "\n",
                 *[t for s in seats for t in ((f"\n{s.letter} {s.name}", f"bold {s.colour}"),
-                                             f"  {s.role}  ", (s.model_id, "dim"))],
+                                             f"  {s.provider}  ", (s.model_id, "dim"))],
             ),
             border_style="dim",
         ))

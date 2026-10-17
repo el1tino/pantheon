@@ -13,7 +13,7 @@ from app.orchestrator.seats import SeatConfig, load_seats, pick_seats
 
 SEATS = [
     SeatConfig(letter=x, name=f"Seat{x}", provider="p", model_id=f"fake/{x.lower()}",
-               colour="#ffffff", role="tester")
+               colour="#ffffff")
     for x in "ABCD"
 ]
 PRICES = {f"fake/{x}": (1e-7, 1e-7) for x in "abcd"} | {"fake/mod": (1e-7, 1e-7)}
@@ -35,12 +35,13 @@ def vote(target):
 class FakeChat:
     """Scripted gateway. `script(letter, kind, messages)` returns text or raises."""
 
-    def __init__(self, script, cost=0.001):
+    def __init__(self, script, cost=0.001, delay=0.0):
         self.script = script
         self.cost = cost
+        self.delay = delay
         self.calls = defaultdict(int)
 
-    async def __call__(self, messages, model=None, max_tokens=None, timeout=None):
+    async def __call__(self, messages, model=None, max_tokens=None, timeout=None, on_delta=None):
         letter = model.split("/")[1].upper()
         user = messages[1]["content"]
         if model == "fake/mod":
@@ -50,7 +51,12 @@ class FakeChat:
         else:
             kind = "round" + user.split("ROUND ")[-1].split(" ")[0]
         self.calls[(letter, kind)] += 1
+        if self.delay:
+            await asyncio.sleep(self.delay)
         text = self.script(letter, kind, messages, self.calls[(letter, kind)])
+        if on_delta:
+            for i in range(0, len(text), 7):
+                on_delta(text[i : i + 7])
         return ChatResult(model, text, 100, 50, self.cost)
 
 

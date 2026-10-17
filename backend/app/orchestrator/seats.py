@@ -14,7 +14,6 @@ class SeatConfig(BaseModel):
     provider: str
     model_id: str
     colour: str
-    role: str
     voice_id: str = ""
     sensitive_ok: bool = False
 

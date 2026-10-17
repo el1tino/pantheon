@@ -6,8 +6,11 @@ A council of AI models from different providers debates your goal, splits the wo
 
 - Milestone 1 (Skeleton) is done: FastAPI, Next.js and SQLite, with one OpenRouter call going end to end.
 - Milestone 2 (Debate engine) is done: seats debate a goal in the terminal with round limits, a majority vote, a moderator summary and a hard budget cap, and the transcript is saved.
+- Milestone 3 (The Chamber, live) is done: convene a council in the browser and watch the debate play out live.
 
-![Test page](docs/milestone-1-test-page.png)
+No seat has a fixed role. Later in a run, each model puts itself forward for the work it's best at and the council votes on who does what.
+
+![The Chamber, mid-debate](docs/milestone-3-chamber-live.png)
 
 ## Requirements
 
@@ -29,7 +32,35 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000/test and press **Send**. The reply, the token count and the cost appear under the box. Each call is saved as a run plus a message in `pantheon.db`.
+Open http://localhost:3000, write a goal, pick the seats, set a budget cap and press **Convene the council**. The Chamber opens and the debate plays live. http://localhost:3000/test still sends a single test call.
+
+### Practice without spending anything
+
+`backend/scripts/fake_openrouter.py` stands in for OpenRouter and streams scripted debates. Use it to work on the UI or film the Chamber for free:
+
+```bash
+# Terminal 1: the practice server
+cd backend && uv run python scripts/fake_openrouter.py          # --cps 80 types slower
+
+# Terminal 2: the backend, pointed at it
+cd backend && OPENROUTER_BASE_URL=http://127.0.0.1:9100/v1 OPENROUTER_API_KEY=fake \
+  uv run uvicorn app.main:app --reload --port 8000
+
+# Terminal 3: the frontend as usual
+cd frontend && npm run dev
+```
+
+`--fail anthropic/claude-sonnet-4.5` makes that seat's provider fail, so you can see the absent state.
+
+### The Chamber
+
+- **Arc of seats:** each seat's letter in its colour on a pedestal. A seat dims when idle, shimmers while thinking, and grows with a caption bubble while speaking. A seat whose provider failed turns grey on a dashed pedestal.
+- **Lines between seats:** white for a proposal, green for agreement, flickering red for a challenge, dotted for a question. A comet travels in the speaker's colour, and the line fades to a faint trail. Pairs that argue or agree build red or green haze between them. Hover a line to see the message it carried.
+- **Project core:** every file a seat writes sends a pulse down its arrow into the core. The odometer counters show lines added and removed. Click the core for the live diff feed. In this milestone the files are each seat's proposal and notes in `projects/<run_id>/`.
+- **Top bar:** the phase rail and the cost meter, which turns amber at 80%. At the cap, the run pauses and a card asks you to raise it or stop.
+- **Transcript drawer:** streams every message. It collapses for demos, and on phones it becomes a bottom sheet.
+- **Pause and stop** take effect between turns. Reduced-motion settings swap the effects for simple fades.
+- Opening a run's link later replays the whole meeting from the event log, then continues live.
 
 ## Run a debate in the terminal
 
@@ -62,9 +93,13 @@ backend/app/config.py      APP_NAME + settings from .env
 backend/app/gateway/       OpenRouter client (OpenAI SDK)
 backend/app/db/            SQLite tables: runs, seats, messages, votes, tasks, artifacts, events
 backend/app/orchestrator/  debate rounds, voting, budget, reply format, file sandbox
-backend/app/events/        ordered event log (the WebSocket comes in milestone 3)
+backend/app/events/        ordered event log + in-process bus for the WebSocket
+backend/app/runs.py        starts runs in the background; pause, stop, budget answers
 backend/app/cli.py         terminal entry point
-frontend/                  Next.js app; /api/* is proxied to the backend
+backend/scripts/           fake_openrouter.py practice server
+frontend/                  Next.js app; /api/* is proxied to the backend, the WebSocket goes direct
+frontend/src/lib/chamber/  event reducer, layout geometry, WebSocket hook
+frontend/src/components/   Chamber (seats, core, PixiJS effects, transcript) and the convene form
 config/seats.yaml          the 13 seats (check model IDs at openrouter.ai/models)
 projects/                  one folder per run (git-ignored)
 ```

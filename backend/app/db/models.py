@@ -33,7 +33,8 @@ class Seat(SQLModel, table=True):
     name: str
     model_id: str
     colour: str
-    role: str
+    # No seat has a fixed role. This holds the role the council votes it into (Roles phase).
+    role: str = ""
     skills: str = ""
 
 

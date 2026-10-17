@@ -21,3 +21,25 @@ body {
   color: var(--foreground);
   min-height: 100vh;
 }
+
+.chamber-stage {
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 58%, rgba(255, 196, 130, 0.075), transparent 70%),
+    radial-gradient(ellipse 40% 30% at 50% 78%, rgba(255, 230, 200, 0.05), transparent 70%);
+}
+
+/* Thinking: the pedestal shimmers left to right. */
+.pedestal-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95), transparent);
+  width: 40%;
+  animation: pedestal-shimmer 1.15s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes pedestal-shimmer {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(260%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pedestal-shimmer { animation: none; opacity: 0.5; width: 100%; }
+}

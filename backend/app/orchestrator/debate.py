@@ -4,9 +4,15 @@ Flow: round 1 every seat proposes; later rounds seats agree, challenge, propose 
 If every present seat agrees with the same proposal the debate ends early. Otherwise, after
 the round limit, seats vote for one proposal that is not their own and the majority wins
 (the moderator breaks ties). The moderator then writes a summary.
+
+Each seat keeps a running notes file and a current proposal file in projects/<run_id>/;
+every write is reported as a diff_applied event so the Chamber's core can count lines.
 """
 
+import asyncio
+import difflib
 import json
+import time
 from collections import Counter
 from collections.abc import Awaitable, Callable
 from dataclasses import asdict, dataclass, field
@@ -15,7 +21,7 @@ from typing import Any, Literal
 from sqlmodel import Session
 
 from app.config import APP_NAME, get_settings
-from app.db import Message, Run, Seat, Vote
+from app.db import Artifact, Message, Run, Seat, Vote
 from app.events.log import EventLog
 from app.gateway import openrouter
 from app.gateway.openrouter import ChatResult, GatewayError
@@ -30,6 +36,7 @@ from app.orchestrator.protocol import (
     parse_reply,
 )
 from app.orchestrator.seats import SeatConfig
+from app.orchestrator.streaming import ContentStreamer
 
 ChatFn = Callable[..., Awaitable[ChatResult]]
 # Called when the next call would pass the cap. Return a new cap to continue, or None to stop.
@@ -37,10 +44,40 @@ PauseFn = Callable[[Budget, BudgetExceeded], Awaitable[float | None]]
 Mode = Literal["open", "discuss", "vote"]
 
 MODERATOR = "moderator"
+TOKEN_FLUSH_S = 0.066  # batch streamed text into ~15 token events per second
+DIFF_FEED_MAX_LINES = 40
 
 
 class RunStopped(Exception):
-    pass
+    def __init__(self, reason: str = "The run was stopped before the council finished."):
+        super().__init__(reason)
+        self.reason = reason
+
+
+class RunControl:
+    """Pause, resume and stop requests from the user. Checked between turns."""
+
+    def __init__(self) -> None:
+        self._running = asyncio.Event()
+        self._running.set()
+        self.stop_requested = False
+
+    @property
+    def paused(self) -> bool:
+        return not self._running.is_set()
+
+    def pause(self) -> None:
+        self._running.clear()
+
+    def resume(self) -> None:
+        self._running.set()
+
+    def stop(self) -> None:
+        self.stop_requested = True
+        self._running.set()
+
+    async def wait_until_running(self) -> None:
+        await self._running.wait()
 
 
 @dataclass
@@ -86,6 +123,8 @@ class Debate:
         prices: dict[str, tuple[float, float]] | None = None,
         on_budget_pause: PauseFn | None = None,
         moderator_model: str | None = None,
+        control: RunControl | None = None,
+        stream_tokens: bool = True,
     ):
         settings = get_settings()
         if not seats:
@@ -98,6 +137,8 @@ class Debate:
         self.phase = phase
         self.chat = chat or openrouter.chat
         self.on_budget_pause = on_budget_pause
+        self.control = control or RunControl()
+        self.stream_tokens = stream_tokens
         self.moderator_model = moderator_model or settings.moderator_model
         self.reply_max_tokens = settings.reply_max_tokens
         self.timeout = settings.call_timeout_s
@@ -111,6 +152,7 @@ class Debate:
         # Tokens and cost of the turn in progress (a turn may include one retry).
         self._turn_tokens = 0
         self._turn_cost = 0.0
+        self._artifact_versions: dict[str, int] = {}
 
         self.run = Run(
             goal=goal, status="created", phase=phase, budget_usd=self.budget.cap_usd
@@ -121,7 +163,7 @@ class Debate:
             session.add(
                 Seat(
                     run_id=self.run.id, letter=s.letter, name=s.name, model_id=s.model_id,
-                    colour=s.colour, role=s.role,
+                    colour=s.colour,
                 )
             )
         session.commit()
@@ -139,7 +181,7 @@ class Debate:
             "phase_changed", phase=self.phase, round=None, goal=self.goal,
             max_rounds=self.max_rounds, budget_usd=self.budget.cap_usd,
             seats=[
-                {"letter": s.letter, "name": s.name, "colour": s.colour, "role": s.role,
+                {"letter": s.letter, "name": s.name, "colour": s.colour, "role": None,
                  "model_id": s.model_id}
                 for s in self.seats
             ],
@@ -149,6 +191,7 @@ class Debate:
         summary = ""
         status = "done"
         try:
+            sandbox.write_text(self.run_id, "goal.md", f"# Goal\n\n{self.goal}\n")
             for r in range(1, self.max_rounds + 1):
                 if self._present() == []:
                     break
@@ -171,9 +214,9 @@ class Debate:
             elif decision is None:
                 decision, decided_by = await self._vote()
             summary = await self._summarise(decision, decided_by)
-        except RunStopped:
+        except RunStopped as exc:
             status = "stopped"
-            summary = "The run was stopped at the budget cap before the council finished."
+            summary = exc.reason
 
         self._set_run(status=status)
         self.log.emit(
@@ -200,14 +243,14 @@ class Debate:
     # ------------------------------------------------------------------ prompts
 
     def _system_prompt(self, seat: SeatConfig) -> str:
-        others = ", ".join(
-            f"{s.letter} {s.name} ({s.role})" for s in self.seats if s.letter != seat.letter
-        )
+        others = ", ".join(f"{s.letter} {s.name}" for s in self.seats if s.letter != seat.letter)
         return (
             f"You are {seat.name}, seat {seat.letter} on the {APP_NAME} council: AI models from "
             f"different providers working on a client's goal together.\n"
-            f"Your role: {seat.role}.\n"
             f"Other members: {others or 'none'}.\n"
+            "Nobody has a fixed role. Later the council will decide who does what: each member "
+            "puts itself forward for the work it is best at and the others vote. Show your "
+            "strengths through what you contribute now.\n"
             "Speak in your own voice and be concrete. Keep each message under 120 words. "
             "Challenge when you have a real reason; agree when a proposal is good enough.\n\n"
             f"{REPLY_FORMAT_HELP}"
@@ -308,8 +351,49 @@ class Debate:
 
     # ------------------------------------------------------------------ calls
 
-    async def _call(self, who: str, model: str, messages: list[dict[str, str]]) -> str | None:
-        """One model call under the budget. Returns None if the provider failed."""
+    async def _gate(self) -> None:
+        """Honour stop and pause requests. Called between turns, never mid-call."""
+        if self.control.stop_requested:
+            raise RunStopped("The run was stopped by the user.")
+        if self.control.paused:
+            self._set_run(status="paused")
+            self.log.emit("phase_changed", phase=self.phase, status="paused")
+            await self.control.wait_until_running()
+            if self.control.stop_requested:
+                raise RunStopped("The run was stopped by the user.")
+            self._set_run(status="running")
+            self.log.emit("phase_changed", phase=self.phase, status="running")
+
+    def _token_sink(self, who: str, stream: str | None) -> tuple[Callable[[str], None] | None, Callable[[], None]]:
+        """Build the on_delta callback that turns streamed output into batched token events."""
+        if not stream or not self.stream_tokens:
+            return None, lambda: None
+        streamer = ContentStreamer() if stream == "json" else None
+        pending: list[str] = []
+        last = [time.monotonic()]
+
+        def flush() -> None:
+            if pending:
+                self.log.emit("token", seat=who, text="".join(pending))
+                pending.clear()
+            last[0] = time.monotonic()
+
+        def on_delta(chunk: str) -> None:
+            text = streamer.feed(chunk) if streamer else chunk
+            if text:
+                pending.append(text)
+            if time.monotonic() - last[0] >= TOKEN_FLUSH_S:
+                flush()
+
+        return on_delta, flush
+
+    async def _call(
+        self, who: str, model: str, messages: list[dict[str, str]], stream: str | None = None
+    ) -> str | None:
+        """One model call under the budget. Returns None if the provider failed.
+
+        stream="json" types out the reply's "content" field live; stream="text" the raw text.
+        """
         estimate = self.budget.estimate(model, messages, self.reply_max_tokens)
         while True:
             try:
@@ -319,10 +403,14 @@ class Debate:
                 await self._pause(exc)
 
         self.log.emit("seat_thinking", seat=who, state="thinking")
+        on_delta, flush = self._token_sink(who, stream)
+        kwargs = {"on_delta": on_delta} if on_delta else {}
         try:
             res = await self.chat(
-                messages, model=model, max_tokens=self.reply_max_tokens, timeout=self.timeout
+                messages, model=model, max_tokens=self.reply_max_tokens, timeout=self.timeout,
+                **kwargs,
             )
+            flush()
         except GatewayError as exc:
             if who == MODERATOR:
                 self.log.emit("seat_thinking", seat=who, state="idle", error=str(exc))
@@ -363,11 +451,12 @@ class Debate:
         self, seat: SeatConfig, round_: int | str, mode: Mode, candidates: list[Entry] = ()
     ) -> Entry | None:
         """Ask one seat for a reply; retry once with the error shown, then drop it."""
+        await self._gate()
         self._turn_tokens, self._turn_cost = 0, 0.0
         messages = self._messages(seat, round_, mode, list(candidates))
         error = ""
         for attempt in (1, 2):
-            text = await self._call(seat.letter, seat.model_id, messages)
+            text = await self._call(seat.letter, seat.model_id, messages, stream="json")
             if text is None:
                 return None
             try:
@@ -413,7 +502,53 @@ class Debate:
         self.log.emit(
             "message_routed", message_id=entry.id, **{"from": seat}, to=target, stance=entry.stance
         )
+        self._record_work(entry)
         return entry
+
+    def _record_work(self, entry: Entry) -> None:
+        """Write what a message produced into the run folder: a seat's current proposal,
+        its running notes, or the moderator's decision."""
+        if entry.seat == MODERATOR:
+            self._write_file(MODERATOR, "decision.md", entry.content.rstrip() + "\n")
+            return
+        if entry.stance == Stance.PROPOSE and entry.proposal:
+            title = entry.proposal.get("title") or "Proposal"
+            body = [f"# {title}", ""]
+            for key, value in entry.proposal.items():
+                if key != "title":
+                    body.append(f"**{key.capitalize()}:** {value}")
+            body += ["", entry.content, ""]
+            self._write_file(entry.seat, f"proposals/{entry.seat}.md", "\n".join(body))
+            return
+        path = f"notes/{entry.seat}.md"
+        old = self._read_file(path)
+        to = f" -> {entry.reply_to}" if entry.reply_to else ""
+        self._write_file(entry.seat, path, f"{old}- [{entry.id}] {entry.stance}{to}: {entry.content}\n")
+
+    def _read_file(self, rel: str) -> str:
+        path = sandbox.safe_path(self.run_id, rel)
+        return path.read_text(encoding="utf-8") if path.exists() else ""
+
+    def _write_file(self, seat: str, rel: str, text: str) -> None:
+        old = self._read_file(rel)
+        sandbox.write_text(self.run_id, rel, text)
+        diff = [
+            line for line in difflib.unified_diff(old.splitlines(), text.splitlines(), lineterm="", n=0)
+            if line[:1] in "+-" and not line.startswith(("+++", "---"))
+        ]
+        added = sum(1 for line in diff if line.startswith("+"))
+        removed = len(diff) - added
+        version = self._artifact_versions.get(rel, 0) + 1
+        self._artifact_versions[rel] = version
+        self.session.add(
+            Artifact(run_id=self.run_id, path=rel, kind="text", version=version, created_by=seat,
+                     lines_added=added, lines_removed=removed)
+        )
+        self.session.commit()
+        self.log.emit(
+            "diff_applied", seat=seat, file=rel, lines_added=added, lines_removed=removed,
+            lines=[{"op": line[0], "text": line[1:]} for line in diff[:DIFF_FEED_MAX_LINES]],
+        )
 
     def _db_id(self, short_id: str | None) -> str | None:
         return f"{self.run_id}-{short_id}" if short_id else None
@@ -518,8 +653,9 @@ class Debate:
                 "**Decision**, **Why**, **Open objections** and **Next steps**."
             )},
         ]
+        await self._gate()
         self._turn_tokens, self._turn_cost = 0, 0.0
-        text = await self._call(MODERATOR, self.moderator_model, messages)
+        text = await self._call(MODERATOR, self.moderator_model, messages, stream="text")
         summary = text.strip() if text else f"**Decision**\n\n{outcome}\n\n(The moderator was unavailable.)"
         self._add(MODERATOR, "summary", AgentReply(stance=Stance.REPORT, content=summary))
         return summary
@@ -553,7 +689,7 @@ class Debate:
         ]
         for s in self.seats:
             mark = " (absent)" if s.letter in self.absent else ""
-            out.append(f"- **{s.letter} · {s.name}**{mark}: {s.role} · `{s.model_id}`")
+            out.append(f"- **{s.letter} · {s.name}**{mark} · {s.provider} · `{s.model_id}`")
         current: int | str | None = None
         for e in result.entries:
             if e.round != current:

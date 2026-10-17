@@ -34,7 +34,7 @@ pantheon/
       db/             # models and migrations
   frontend/           # Next.js app: Chamber, Board, Vault, Replay
   projects/           # one folder per run (git-ignored)
-  config/seats.yaml   # 13 seats: letter, name, provider, model ID, colour, role, voice ID, sensitive_ok
+  config/seats.yaml   # 13 seats: letter, name, provider, model ID, colour, voice ID, sensitive_ok (no fixed roles)
   PANTHEON_SPEC.md
   CLAUDE.md
   .env.example
@@ -63,7 +63,7 @@ pantheon/
 2. **Debate engine:** seats, the reply format, rounds with limits, moderator summary, cost tracking. Done when 4 models debate in the terminal and the transcript is saved.
 3. **The Chamber, live:** WebSocket, letter arc, project core with +/− counters, lines, arrows, seat states, transcript, phase rail, cost meter. Use the frontend design skill and treat the spec's Chamber section as the design brief.
 4. **Ideas, voting and checkpoints.**
-5. **Roles and building:** the Board and the Vault.
+5. **Roles and building:** models nominate themselves for workstreams and vote on who does what (no fixed roles, no self-votes), the Board and the Vault.
 6. **Images and integration:** Docker execution and the consistency pass.
 7. **Replay, Demo mode and deployment.**
 

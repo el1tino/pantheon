@@ -24,7 +24,7 @@ A run is a fixed sequence of six phases, with the user approving at three checkp
 
 3.  **Research.** Search-capable models gather competitors, pricing and market notes. The others challenge weak assumptions.
 
-4.  **Roles.** Models negotiate who leads each workstream, within a skills profile the user edits in settings (for example: Claude leads code, Gemini leads images and visual design, GPT leads marketing copy, DeepSeek does bulk work and second opinions). A moderator turns the agreement into a task plan. **Checkpoint 2: the user approves the plan.**
+4.  **Roles.** No model has a fixed role. For each workstream (code, brand and images, copy, business plan and pitch deck, review), every model may put itself forward with a short pitch on why it is the best fit, drawing on what it showed in the earlier phases. The council then votes on who leads each workstream, and no model may vote for itself. A tie goes to the moderator. The moderator turns the result into a task plan. **Checkpoint 2: the user approves the plan and can swap any assignment.**
 
 5.  **Build.** Workstreams run in parallel: code, brand and images, copy, business plan and pitch deck. Every artifact is reviewed by a different model than the one that made it. Agents post questions and blockers to a shared team board; a coordinator routes each one to the right teammate.
 
@@ -34,23 +34,23 @@ During any phase, the user can type into the council chat. Their message counts 
 
 ## Council seats
 
-Pantheon ships with 13 chat-model seats from 13 providers, all reachable through OpenRouter. A run seats 7 by default (A to G), and the user can seat any mix of up to all 13.
+Pantheon ships with 13 chat-model seats from 13 providers, all reachable through OpenRouter. A run seats 7 by default (A to G), and the user can seat any mix of up to all 13. Seats have no predetermined roles: each model assumes a role during the run, and the council votes on who does what (see Roles above).
 
-| Letter | Seat       | Provider    | Colour      | Default role                                            |
-|--------|------------|-------------|-------------|---------------------------------------------------------|
-| A      | Claude     | Anthropic   | Amber       | Lead engineer: architecture and most of the code        |
-| B      | GPT        | OpenAI      | Emerald     | Marketing lead: copy, launch plan, pitch deck text      |
-| C      | Gemini     | Google      | Blue-violet | Design lead: visual identity, image direction, research |
-| D      | DeepSeek   | DeepSeek    | Cyan        | Reviewer: second opinions, bulk work                    |
-| E      | Grok       | xAI         | Silver      | Challenger: stress-tests every plan and assumption      |
-| F      | Mistral    | Mistral AI  | Orange      | Strategist: business model, pricing, business plan      |
-| G      | Qwen       | Alibaba     | Purple      | Content producer: bulk content, translations            |
-| H      | Kimi       | Moonshot AI | Rose        | Product manager: scope, specs, priorities               |
-| I      | GLM        | Z.ai        | Teal        | Front-end builder                                       |
-| J      | MiMo       | Xiaomi      | Coral       | Back-end builder                                        |
-| K      | Muse Spark | Meta        | Sky blue    | Community lead: social media plan and posts             |
-| L      | Nemotron   | NVIDIA      | Lime        | QA: tests, bug reports, fix checks                      |
-| M      | Granite    | IBM         | Steel blue  | Documentation and data checks                           |
+| Letter | Seat       | Provider    | Colour      |
+|--------|------------|-------------|-------------|
+| A      | Claude     | Anthropic   | Amber       |
+| B      | GPT        | OpenAI      | Emerald     |
+| C      | Gemini     | Google      | Blue-violet |
+| D      | DeepSeek   | DeepSeek    | Cyan        |
+| E      | Grok       | xAI         | Silver      |
+| F      | Mistral    | Mistral AI  | Orange      |
+| G      | Qwen       | Alibaba     | Purple      |
+| H      | Kimi       | Moonshot AI | Rose        |
+| I      | GLM        | Z.ai        | Teal        |
+| J      | MiMo       | Xiaomi      | Coral       |
+| K      | Muse Spark | Meta        | Sky blue    |
+| L      | Nemotron   | NVIDIA      | Lime        |
+| M      | Granite    | IBM         | Steel blue  |
 
 **Consultants** are called on demand for one job and don't sit in the arc:
 
@@ -58,7 +58,7 @@ Pantheon ships with 13 chat-model seats from 13 providers, all reachable through
 
 - **Voice:** ElevenLabs. With "Voices on", each seat speaks its messages aloud in its own voice during the meeting, which is ideal for demo videos.
 
-**Configuration.** Seats live in config/seats.yaml: letter, name, provider, model ID, colour, role, voice ID and a sensitive_ok flag. Model IDs change often, so copy current ones from [openrouter.ai/models](https://openrouter.ai/models). Providers' data policies differ; a seat with sensitive_ok: false never receives files the user marks as private.
+**Configuration.** Seats live in config/seats.yaml: letter, name, provider, model ID, colour, voice ID and a sensitive_ok flag (no role: roles are voted on in each run). Model IDs change often, so copy current ones from [openrouter.ai/models](https://openrouter.ai/models). Providers' data policies differ; a seat with sensitive_ok: false never receives files the user marks as private.
 
 ## The Council UI
 
@@ -68,7 +68,7 @@ The Chamber shows the council as glowing letters on an arc above a central proje
 
 **Main screen layout (desktop).**
 
-- **The arc of seats (top).** Each seat is its letter (A, B, C…) in a large clean typeface and its signature colour, standing on a short glowing pedestal line. Letters sit on a gentle arc, outer seats lower and the centre highest, like a council bench. Up to 13 fit; fewer seats spread out evenly. Under each letter: its name, role badge and a small + / − count of its own contributions.
+- **The arc of seats (top).** Each seat is its letter (A, B, C…) in a large clean typeface and its signature colour, standing on a short glowing pedestal line. Letters sit on a gentle arc, outer seats lower and the centre highest, like a council bench. Up to 13 fit; fewer seats spread out evenly. Under each letter: its name, a role badge once the council has voted it into a role, and a small + / − count of its own contributions.
 
 - **Seat states.** Idle: dim, with a slow breathing glow. Thinking: the pedestal shimmers left to right and the letter pulses softly. Speaking: the letter brightens, grows about 10% and sends out an expanding ring, while a caption bubble above it streams the message's first line. Absent (provider failed): greyed letter on a dashed pedestal.
 
@@ -84,7 +84,7 @@ The Chamber shows the council as glowing letters on an arc above a central proje
 
 - **Live diff feed.** Clicking the core opens a scrolling git-style feed: green lines added, red lines removed, each tagged with the letter of the seat that made it.
 
-- **Transcript drawer (right).** The full streaming chat, each message with its seat's colour bar, name, role badge and stance tag: Proposes, Challenges, Agrees, Votes. It collapses so the arc and core fill the screen for demos.
+- **Transcript drawer (right).** The full streaming chat, each message with its seat's colour bar, name, role badge (once assigned) and stance tag: Proposes, Challenges, Agrees, Votes. It collapses so the arc and core fill the screen for demos.
 
 - **Top bar: phase tracker.** The six phases as a slim rail with the current phase glowing, plus the live cost meter against the budget cap.
 
@@ -155,7 +155,7 @@ Everything a run does is stored as rows in one SQLite database, so any model can
 | Table     | Holds                              | Key fields                                                                   |
 |-----------|------------------------------------|------------------------------------------------------------------------------|
 | runs      | One council session                | id, goal, status, phase, budget_usd, spent_usd, created_at                   |
-| seats     | Models attending a run             | run_id, name, model_id, colour, role, skills                                 |
+| seats     | Models attending a run             | run_id, name, model_id, colour, role (assumed by vote)                       |
 | messages  | Everything said in the Chamber     | run_id, seat, phase, stance, reply_to, content, tokens, cost_usd             |
 | votes     | Scores and approvals               | run_id, phase, voter_seat, target, score                                     |
 | tasks     | The build plan                     | run_id, title, owner_seat, reviewer_seat, status, depends_on                 |
@@ -210,7 +210,7 @@ Build in seven milestones, each ending in something that runs and can be shown. 
 
 4.  **Ideas, voting and checkpoints.** Anonymous scoring, vote animations, checkpoint cards, user messages into the chat. Done when: a run stops at the idea checkpoint and continues after the user picks.
 
-5.  **Roles and building.** Skills profile in settings, role negotiation, task plan, the Board, builder and reviewer agents writing files, the Vault. Done when: a run produces a small multi-file website.
+5.  **Roles and building.** Self-nomination and voting for roles, task plan, the Board, builder and reviewer agents writing files, the Vault. Done when: a run produces a small multi-file website.
 
 6.  **Images and integration.** Image generation through the provider's image API, code execution in Docker, error loop back to the owner, consistency pass. Done when: a run produces a site that starts and uses its own generated logo.
 
