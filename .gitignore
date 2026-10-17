@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+projects/*
+!projects/.gitkeep
+*.db
+*.sqlite3
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+.next/
+.DS_Store
