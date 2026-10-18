@@ -150,7 +150,7 @@ docker compose up -d --build
 <summary><b>The Chamber</b>: what you're looking at</summary>
 
 - **Arc of seats:** each model is its provider's logo on a glass disc that glows in the seat's colour, with its seat letter beside it. A seat dims when idle, shimmers while thinking, and grows with a caption bubble while speaking. A seat whose provider failed turns grey.
-- **Lines between seats:** white for a proposal, green for agreement, flickering red for a challenge, dotted for a question. Pairs that keep arguing or agreeing build up red or green haze. Hover a line to see the message it carried.
+- **Lines between seats:** an arc grows from the speaker's disc to the listener's with a comet at its tip, lands with a soft ring, then draws itself into the listener and leaves a faint trail. White for a proposal, green for agreement, red (gently pulsing) for a challenge, dotted for a question. Votes are quick low arcs. Pairs that keep arguing or agreeing build up red or green haze. Hover a line to see the message it carried.
 - **Project core:** every file a seat writes sends a pulse into the core, and the counters show lines added and removed. Click the core for the live diff feed.
 - **Top bar:** the mission's phase rail and the cost meter.
 - **Transcript, Board and Vault:** the drawer on the right holds every message, the task board and every file. On phones it becomes a bottom sheet.
