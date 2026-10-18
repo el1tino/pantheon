@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { APP_NAME, THE_GROUP } from "@/lib/app";
+import { THE_GROUP } from "@/lib/app";
 import { testCall, type TestCallResult } from "@/lib/api";
 
 export default function TestPage() {
@@ -28,7 +28,7 @@ export default function TestPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-6 py-16">
       <header className="flex items-baseline justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">{APP_NAME} · test call</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Test call</h1>
         <Link href="/" className="text-sm text-muted hover:text-foreground">
           Home
         </Link>
@@ -59,7 +59,7 @@ export default function TestPage() {
       {result && (
         <section className="glass flex flex-col gap-3 rounded-2xl p-4">
           <p className="whitespace-pre-wrap leading-relaxed">{result.reply}</p>
-          <dl className="flex flex-wrap gap-x-6 gap-y-1 font-mono text-xs text-muted">
+          <dl className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted">
             <div>model <span className="text-foreground">{result.model}</span></div>
             <div>tokens <span className="text-foreground">{result.tokens}</span></div>
             <div>

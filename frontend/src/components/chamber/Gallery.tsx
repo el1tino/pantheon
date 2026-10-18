@@ -30,11 +30,11 @@ export default function Gallery({ images, seats, version }: {
           <figcaption className="space-y-1 p-3 text-[12px]">
             <div className="flex items-center justify-between gap-2">
               <span className="font-mono text-white/70">{img.path}</span>
-              <span className="rounded bg-white/[0.06] px-1.5 text-[10.5px] uppercase tracking-wider text-white/45">{img.kind}</span>
+              <span className="rounded bg-white/[0.06] px-1.5 text-[11.5px] text-white/45">{img.kind}</span>
             </div>
             <p className="italic text-white/50">“{img.prompt}”</p>
             <p className="text-white/35">
-              by <span style={{ color: seat(img.seat)?.colour }}>{seat(img.seat)?.name ?? img.seat}</span> · {img.consultant}
+              by <span style={{ color: seat(img.seat)?.colour }}>{seat(img.seat)?.name ?? img.seat}</span>, made with {img.consultant}
             </p>
           </figcaption>
         </figure>

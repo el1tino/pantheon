@@ -26,11 +26,11 @@ export default function CheckReport({ text, onOpenFile }: { text: string; onOpen
   return (
     <div className="mx-auto max-w-3xl space-y-4 text-[13px]">
       <div className="flex items-center gap-3">
-        <span className={`rounded-full border px-3 py-1 text-[12px] font-medium uppercase tracking-wider ${BADGE[report.status] ?? ""}`}>
+        <span className={`rounded-full border px-3 py-1 text-[12px] font-medium ${BADGE[report.status] ?? ""}`}>
           {report.status.replace("_", " ")}
         </span>
         <span className="text-white/50">
-          Check {report.check} · run in Docker with no network, a read-only filesystem and no secrets
+          Check {report.check}, run in Docker with no network, a read-only filesystem and no secrets
         </span>
       </div>
       {report.detail && <p className="text-amber-200/80">{report.detail}</p>}
@@ -41,12 +41,12 @@ export default function CheckReport({ text, onOpenFile }: { text: string; onOpen
       )}
       {report.errors.length > 0 && (
         <div>
-          <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-red-300/70">Errors · {report.errors.length}</div>
+          <div className="mb-2 text-[12px] text-red-300/70">Errors ({report.errors.length})</div>
           <ul className="space-y-2">
             {report.errors.map((e, i) => (
               <li key={i} className="rounded-lg border border-red-400/20 bg-red-500/[0.06] p-3">
                 <div className="flex flex-wrap items-center gap-2 text-[11.5px]">
-                  <span className="rounded bg-red-400/15 px-1.5 uppercase tracking-wider text-red-200">{e.kind}</span>
+                  <span className="rounded bg-red-400/15 px-1.5 text-red-200">{e.kind}</span>
                   {e.file && (
                     <button onClick={() => onOpenFile(e.file!)} className="font-mono text-white/70 underline decoration-white/20 hover:text-white">
                       {e.file}{e.line ? `:${e.line}` : ""}
@@ -62,7 +62,7 @@ export default function CheckReport({ text, onOpenFile }: { text: string; onOpen
       {report.status === "passed" && <p className="text-emerald-300/80">No errors: the page loaded, its scripts ran and every file it uses exists.</p>}
       {report.warnings.length > 0 && (
         <div>
-          <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-white/40">Warnings · {report.warnings.length}</div>
+          <div className="mb-2 text-[12px] text-white/40">Warnings ({report.warnings.length})</div>
           <ul className="space-y-1 text-white/55">
             {report.warnings.map((w, i) => <li key={i}>{w.file ? `${w.file}: ` : ""}{w.message}</li>)}
           </ul>

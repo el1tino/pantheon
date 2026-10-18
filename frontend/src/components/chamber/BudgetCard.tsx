@@ -41,12 +41,12 @@ export default function BudgetCard({ spent, cap, estimate, onRaise, onStop }: Pr
         className="glass-thick w-[min(420px,92vw)] rounded-[22px] !border-red-400/25 p-6"
         style={{ boxShadow: "0 0 60px rgba(248,113,113,0.12)" }}
       >
-        <div className="mb-1 text-[10px] uppercase tracking-[0.3em] text-red-300/80">Budget cap reached</div>
+        <div className="mb-1 text-[11.5px] text-red-300/80">Budget cap reached</div>
         <h2 className="mb-3 text-lg font-medium text-white">The {GROUP_NAME} has paused.</h2>
         <p className="mb-5 text-[13px] leading-relaxed text-white/60">
-          It has spent <span className="font-mono text-white/85">{usd(spent)}</span> of{" "}
-          <span className="font-mono text-white/85">{usd(cap)}</span>. The next call is estimated at{" "}
-          <span className="font-mono text-white/85">{usd(estimate)}</span>. Raise the cap to continue, or stop here.
+          It has spent <span className="text-white/85">{usd(spent)}</span> of{" "}
+          <span className="text-white/85">{usd(cap)}</span>. The next call is estimated at{" "}
+          <span className="text-white/85">{usd(estimate)}</span>. Raise the cap to continue, or stop here.
         </p>
         <label className="mb-4 flex items-center gap-2 text-[13px] text-white/60">
           New cap
@@ -58,7 +58,7 @@ export default function BudgetCard({ spent, cap, estimate, onRaise, onStop }: Pr
               step="any"
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              className="w-24 bg-transparent px-1 py-1.5 font-mono text-white outline-none"
+              className="w-24 bg-transparent px-1 py-1.5 text-white outline-none"
             />
           </span>
         </label>

@@ -52,7 +52,7 @@ export default function CheckpointCard({ checkpoint, seats, siteVersion, onAnswe
         style={{ boxShadow: "0 0 80px rgba(253, 230, 138, 0.08)" }}
       >
         <div className="border-b border-white/[0.06] px-6 pb-4 pt-5">
-          <div className="mb-1 text-[10px] uppercase tracking-[0.3em] text-amber-200/70">Checkpoint · your call</div>
+          <div className="mb-1.5 flex items-center gap-2 text-[13px] text-amber-200/85"><span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_8px_rgba(252,211,77,0.8)]" />Waiting for you</div>
           <h2 className="text-lg font-medium text-white">
             {checkpoint.kind === "pick" ? `The ${GROUP_NAME}'s top options` : `Review: ${checkpoint.title}`}
           </h2>
@@ -104,15 +104,15 @@ export default function CheckpointCard({ checkpoint, seats, siteVersion, onAnswe
                       <div className="mt-1 text-[13px] leading-relaxed text-white/60">{o.summary}</div>
                       <div className="mt-2 flex items-center gap-1.5 text-[11px] text-white/40">
                         <span className="h-1.5 w-1.5 rounded-full" style={{ background: colourOf(o.seat), boxShadow: `0 0 6px ${colourOf(o.seat)}` }} />
-                        proposed by {nameOf(o.seat)} · {o.id}
+                        proposed by {nameOf(o.seat)}
                       </div>
                     </div>
                     <div className="shrink-0 text-right">
-                      <div className="font-mono text-2xl tabular-nums text-amber-200">{o.score.toFixed(1)}</div>
+                      <div className="text-[28px] font-semibold tabular-nums tracking-tight text-amber-200">{o.score.toFixed(1)}</div>
                       <div className="text-[10.5px] text-white/35">{o.votes} score{o.votes === 1 ? "" : "s"}</div>
                     </div>
                   </div>
-                  <span className="absolute bottom-3 right-4 text-[11px] text-white/0 transition-colors group-hover:text-white/60">Pick this →</span>
+                  <span className="absolute bottom-3 right-4 text-[11px] text-white/0 transition-colors group-hover:text-white/60">Pick this</span>
                 </motion.button>
               ))}
             </div>

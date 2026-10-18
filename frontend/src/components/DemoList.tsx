@@ -13,7 +13,7 @@ export default function DemoList({ className = "" }: { className?: string }) {
   if (!demos.length) return null;
   return (
     <section className={`w-full ${className}`}>
-      <h2 className="mb-3 text-[11px] uppercase tracking-[0.2em] text-white/40">Watch a demo</h2>
+      <h2 className="mb-3 text-[15px] font-semibold text-white/85">Watch a demo</h2>
       <ul className="space-y-2">
         {demos.map((d) => (
           <li key={d.id}>

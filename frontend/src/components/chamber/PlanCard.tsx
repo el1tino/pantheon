@@ -46,7 +46,7 @@ export default function PlanCard({ checkpoint, seats, onApprove }: Props) {
       style={{ color: seat(assign[tid][field])?.colour }}
     >
       {choices.map((c) => (
-        <option key={c} value={c} style={{ color: seat(c)?.colour }}>{c} · {seat(c)?.name}</option>
+        <option key={c} value={c} style={{ color: seat(c)?.colour }}>{seat(c)?.name} ({c})</option>
       ))}
     </select>
   );
@@ -60,7 +60,7 @@ export default function PlanCard({ checkpoint, seats, onApprove }: Props) {
         className="glass-thick flex max-h-full w-[min(860px,96vw)] flex-col rounded-[22px] !border-amber-200/15"
       >
         <div className="border-b border-white/[0.06] px-6 pb-4 pt-5">
-          <div className="mb-1 text-[10px] uppercase tracking-[0.3em] text-amber-200/70">Checkpoint · approve the plan</div>
+          <div className="mb-1.5 flex items-center gap-2 text-[13px] text-amber-200/85"><span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_8px_rgba(252,211,77,0.8)]" />Waiting for you</div>
           <h2 className="text-lg font-medium text-white">Who builds what</h2>
           <p className="mt-1 text-[12.5px] text-white/45">
             Leads were voted in by the other members. Every task is reviewed by a different model. Swap anyone before approving.
@@ -70,7 +70,7 @@ export default function PlanCard({ checkpoint, seats, onApprove }: Props) {
               <span key={w.id} className="flex items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-1 text-[12px] text-white/75">
                 <span className="h-2 w-2 rounded-full" style={{ background: seat(w.lead)?.colour, boxShadow: `0 0 6px ${seat(w.lead)?.colour}` }} />
                 {w.title}: <span style={{ color: seat(w.lead)?.colour }}>{seat(w.lead)?.name}</span>
-                {w.votes > 0 && <span className="font-mono text-[10.5px] text-white/35">{w.votes} vote{w.votes === 1 ? "" : "s"}</span>}
+                {w.votes > 0 && <span className="text-[11.5px] text-white/35">{w.votes} vote{w.votes === 1 ? "" : "s"}</span>}
               </span>
             ))}
           </div>
@@ -78,7 +78,7 @@ export default function PlanCard({ checkpoint, seats, onApprove }: Props) {
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-3">
           <table className="w-full text-[12.5px]">
             <thead>
-              <tr className="text-left text-[10.5px] uppercase tracking-[0.15em] text-white/35">
+              <tr className="text-left text-[11.5px] text-white/35">
                 <th className="py-2 pr-3 font-normal">Task</th>
                 <th className="py-2 pr-3 font-normal">Files</th>
                 <th className="py-2 pr-3 font-normal">Builds</th>
@@ -89,7 +89,7 @@ export default function PlanCard({ checkpoint, seats, onApprove }: Props) {
               {checkpoint.tasks.map((t) => (
                 <tr key={t.id} className="border-t border-white/[0.06] align-top">
                   <td className="py-2.5 pr-3">
-                    <div className="text-white/90">{t.title} <span className="font-mono text-[10.5px] text-white/30">{t.id}</span></div>
+                    <div className="text-white/90">{t.title} <span className="text-[11.5px] text-white/30">{t.id}</span></div>
                     {t.brief && <div className="mt-0.5 text-[11.5px] text-white/45">{t.brief}</div>}
                     {t.depends_on.length > 0 && <div className="mt-0.5 text-[10.5px] text-white/30">after {t.depends_on.join(", ")}</div>}
                   </td>

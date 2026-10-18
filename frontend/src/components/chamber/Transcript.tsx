@@ -7,6 +7,7 @@ import SeatLogo from "@/components/SeatLogo";
 import { SeatView } from "@/lib/chamber/reducer";
 import { CLIENT, MODERATOR, Message, STANCE_COLOUR, STANCE_LABEL } from "@/lib/chamber/types";
 import { GROUP_NAME } from "@/lib/app";
+import { THE_GROUP } from "@/lib/app";
 
 type Props = {
   seats: SeatView[];
@@ -55,17 +56,17 @@ export default function Transcript({ seats, messages, live, thinking, tally, sco
 
   const header = (letter: string, extra?: React.ReactNode) => {
     if (letter === MODERATOR) return <span className="text-[12px] font-medium text-white/85">Moderator</span>;
-    if (letter === CLIENT) return <span className="text-[12px] font-medium text-white">You · client</span>;
+    if (letter === CLIENT) return <span className="text-[12px] font-medium text-white">You</span>;
     const s = seatOf(letter);
     return (
       <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <span className="flex items-center gap-1.5 text-[12.5px] font-medium" style={{ color: s?.colour }}>
           {s?.logo && <SeatLogo seat={s} size={14} />}
           {s?.name ?? letter}
-          <span className="font-mono text-[10px] font-normal text-white/30">{letter}</span>
+          <span className="text-[11.5px] font-normal text-white/30">{letter}</span>
         </span>
         {s?.role && (
-          <span className="rounded-full border border-white/10 px-1.5 text-[9.5px] uppercase tracking-[0.1em] text-white/45">
+          <span className="rounded-full border border-white/10 px-1.5 text-[11.5px] text-white/45">
             {s.role}
           </span>
         )}
@@ -76,7 +77,7 @@ export default function Transcript({ seats, messages, live, thinking, tally, sco
 
   const optionScore = (id: string) =>
     scores[id]?.length ? (
-      <span className="ml-2 font-mono text-[10.5px] text-amber-200/80">
+      <span className="ml-2 text-[11.5px] text-amber-200/80">
         {avg(scores[id]).toFixed(1)}★ · {scores[id].length}
       </span>
     ) : null;
@@ -99,7 +100,7 @@ export default function Transcript({ seats, messages, live, thinking, tally, sco
           return (
             <motion.div key={m.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
               className="ml-6 rounded-lg border border-white/20 bg-white/[0.07] px-3 py-2 text-[13px] text-white">
-              <div className="mb-0.5 text-[10px] uppercase tracking-[0.2em] text-white/50">You · direct instruction</div>
+              <div className="mb-0.5 text-[12px] font-medium text-white/55">You, to {THE_GROUP}</div>
               {m.content}
             </motion.div>
           );
@@ -109,7 +110,7 @@ export default function Transcript({ seats, messages, live, thinking, tally, sco
           return big ? (
             <motion.div key={m.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
               className="glass-well rounded-xl p-3 text-[12.5px] leading-relaxed text-white/75">
-              <div className="mb-2 text-[10px] uppercase tracking-[0.25em] text-white/45">
+              <div className="mb-2 text-[13px] font-semibold text-white/80">
                 {m.round === "verdict" ? "The result" : "Moderator summary"}
               </div>
               <Collapsible text={m.content} />
@@ -142,7 +143,7 @@ export default function Transcript({ seats, messages, live, thinking, tally, sco
                 m.seat,
                 <>
                 <span
-                  className="rounded px-1.5 text-[10px] font-medium uppercase tracking-[0.08em]"
+                  className="rounded px-1.5 text-[11.5px] font-medium"
                   style={{ color: STANCE_COLOUR[m.stance], background: `${STANCE_COLOUR[m.stance]}14` }}
                 >
                   {work ? (m.round === "revise" ? "Revises" : "Writes") : STANCE_LABEL[m.stance] ?? m.stance}
@@ -154,7 +155,7 @@ export default function Transcript({ seats, messages, live, thinking, tally, sco
                 </span>
                 {m.unverified && (
                   <span
-                    className="rounded border border-amber-300/40 px-1.5 text-[10px] font-medium uppercase tracking-[0.08em] text-amber-200"
+                    className="rounded border border-amber-300/40 px-1.5 text-[11.5px] font-medium text-amber-200"
                     title="This claims success but points at no artifact or passing check log, so it is not verified."
                   >
                     Unverified
@@ -162,7 +163,7 @@ export default function Transcript({ seats, messages, live, thinking, tally, sco
                 )}
                 </>,
               )}
-              <span className="shrink-0 font-mono text-[10px] text-white/25">{m.id}</span>
+              <span className="shrink-0 text-[11.5px] text-white/25">{m.id}</span>
             </div>
             {work ? <Collapsible text={m.content} /> : <p className="text-[13px] leading-relaxed text-white/80">{m.content}</p>}
             {Array.isArray(opts) && (
@@ -173,7 +174,7 @@ export default function Transcript({ seats, messages, live, thinking, tally, sco
                     <div key={i} className="rounded border px-2.5 py-1.5 text-[12px]" style={{ borderColor: `${colour}33`, background: `${colour}0d` }}>
                       <span className="font-medium" style={{ color: colour }}>◆ {o.title}</span>
                       {o.summary && <span className="text-white/60"> — {o.summary}</span>}
-                      <span className="ml-1 font-mono text-[10px] text-white/30">{id}</span>
+                      <span className="ml-1 text-[11.5px] text-white/30">{id}</span>
                       {optionScore(id)}
                     </div>
                   );
@@ -212,7 +213,7 @@ export default function Transcript({ seats, messages, live, thinking, tally, sco
                 <span className="font-medium" style={{ color: colour }}>◆ {String(m.proposal.title ?? "Proposal")}</span>
                 {m.proposal.summary ? <span className="text-white/60"> — {String(m.proposal.summary)}</span> : null}
                 {tally[m.id] !== undefined && (
-                  <span className="ml-2 font-mono text-[10.5px] text-white/50">{tally[m.id]} vote{tally[m.id] === 1 ? "" : "s"}</span>
+                  <span className="ml-2 text-[11.5px] text-white/50">{tally[m.id]} vote{tally[m.id] === 1 ? "" : "s"}</span>
                 )}
               </div>
             )}
@@ -222,7 +223,7 @@ export default function Transcript({ seats, messages, live, thinking, tally, sco
                   const part = (v as { part?: string }).part;
                   const label = part ? `${part} → ${v.target}` : m.round === "score" ? `${v.target} ${v.score}★` : v.target;
                   return (
-                    <span key={i} className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-[10.5px] text-white/60">{label}</span>
+                    <span key={i} className="rounded bg-white/[0.06] px-1.5 py-0.5 text-[11.5px] text-white/60">{label}</span>
                   );
                 })}
               </div>

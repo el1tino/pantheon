@@ -34,12 +34,12 @@ export default function Board({ tasks, seats, onClose }: Props) {
       className="absolute inset-3 z-40 flex flex-col overflow-hidden glass-thick rounded-[22px]"
     >
       <div className="flex items-center gap-4 border-b border-white/[0.07] px-5 py-3">
-        <span className="text-[10px] uppercase tracking-[0.3em] text-white/50">The Board</span>
+        <span className="text-[15px] font-semibold text-white/90">Board</span>
         <div className="flex flex-wrap gap-2">
           {leads.map((w) => (
             <span key={w.id} className="flex items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-0.5 text-[11.5px] text-white/70">
               {seat(w.owner) ? <SeatLogo seat={seat(w.owner)!} size={12} /> : <span className="h-1.5 w-1.5 rounded-full bg-white/40" />}
-              {w.title} · <span style={{ color: seat(w.owner)?.colour }}>{seat(w.owner)?.name ?? w.owner}</span>
+              {w.title}, led by <span style={{ color: seat(w.owner)?.colour }}>{seat(w.owner)?.name ?? w.owner}</span>
             </span>
           ))}
         </div>
@@ -53,9 +53,9 @@ export default function Board({ tasks, seats, onClose }: Props) {
             const inCol = cards.filter((t) => col.statuses.includes(t.status));
             return (
               <div key={col.key} className="flex min-h-40 flex-col rounded-xl bg-white/[0.02] p-2">
-                <div className="mb-2 flex items-center justify-between px-1 text-[11px] uppercase tracking-[0.15em] text-white/45">
+                <div className="mb-2 flex items-center justify-between px-1 text-[12px] text-white/45">
                   {col.label}
-                  <span className="font-mono text-white/30">{inCol.length}</span>
+                  <span className="text-white/30">{inCol.length}</span>
                 </div>
                 <div className="space-y-2">
                   {inCol.map((t) => {
@@ -70,7 +70,7 @@ export default function Board({ tasks, seats, onClose }: Props) {
                       >
                         <div className="flex items-start justify-between gap-2">
                           <span className="text-[12.5px] font-medium leading-snug text-white/90">{t.title}</span>
-                          <span className="font-mono text-[10px] text-white/30">{t.id}</span>
+                          <span className="text-[11.5px] text-white/30">{t.id}</span>
                         </div>
                         {t.workstream && <div className="mt-0.5 text-[10.5px] text-white/35">{t.workstream}</div>}
                         <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">

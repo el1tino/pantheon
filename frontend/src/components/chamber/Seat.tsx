@@ -83,7 +83,7 @@ export default function Seat({ seat, spot, compact, reducedMotion }: Props) {
         >
           <SeatLogo seat={seat} size={size * 0.5} dim={absent} />
           <span
-            className="glass-chip absolute -bottom-1 -right-1 flex items-center justify-center rounded-full font-mono font-medium leading-none"
+            className="glass-chip absolute -bottom-1 -right-1 flex items-center justify-center rounded-full font-medium leading-none"
             style={{ width: Math.max(16, size * 0.3), height: Math.max(16, size * 0.3), fontSize: Math.max(9, size * 0.15), color: absent ? GREY : colour }}
             aria-hidden
           >
@@ -112,18 +112,18 @@ export default function Seat({ seat, spot, compact, reducedMotion }: Props) {
       <div className="mt-2 flex flex-col items-center gap-1 whitespace-nowrap">
         <span className={`text-[12px] ${absent ? "text-white/30" : "text-white/75"}`}>
           {seat.name}
-          {absent && " · absent"}
+          {absent && " (absent)"}
         </span>
         {!compact && seat.role && (
           <span
-            className="rounded-full border px-2 py-[1px] text-[9.5px] uppercase tracking-[0.12em]"
+            className="rounded-full border px-2 py-[1px] text-[11.5px]"
             style={{ borderColor: `${colour}44`, color: `${colour}cc` }}
             title={seat.role}
           >
             {seat.role}
           </span>
         )}
-        <span className="font-mono text-[10.5px] tabular-nums">
+        <span className="text-[11.5px] tabular-nums">
           <span className="text-emerald-400/80">+{seat.plus}</span>{" "}
           <span className="text-red-400/80">−{seat.minus}</span>
         </span>

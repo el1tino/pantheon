@@ -57,7 +57,7 @@ export default function ReplayBar({ replay, clean, onClean }: { replay: Replay; 
         )}
       </button>
 
-      <span className="w-[84px] shrink-0 font-mono text-[11px] text-white/45">
+      <span className="w-[84px] shrink-0 text-[11px] text-white/45">
         {fmt(clock)} / {fmt(duration)}
       </span>
 
@@ -106,7 +106,7 @@ export default function ReplayBar({ replay, clean, onClean }: { replay: Replay; 
             key={s}
             onClick={() => setSpeed(s)}
             aria-pressed={speed === s}
-            className={`h-8 px-2 font-mono text-[11px] transition-colors sm:px-2.5 ${speed === s ? "bg-white/[0.12] text-white" : "text-white/45 hover:text-white/80"}`}
+            className={`h-8 px-2 text-[11px] transition-colors sm:px-2.5 ${speed === s ? "bg-white/[0.12] text-white" : "text-white/45 hover:text-white/80"}`}
           >
             {s}×
           </button>

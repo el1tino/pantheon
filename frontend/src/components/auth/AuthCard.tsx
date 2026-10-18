@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { APP_NAME } from "@/lib/app";
+import Wordmark from "@/components/Wordmark";
 
 type Props = {
   title: string;
@@ -40,8 +40,8 @@ export default function AuthCard({ title, submitLabel, newPassword = false, note
   return (
     <main className="chamber-stage flex min-h-dvh flex-col items-center px-4 py-16 md:py-24">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="w-full max-w-sm">
-        <p className="text-center text-[13px] font-semibold uppercase tracking-[0.5em] text-white/80">{APP_NAME}</p>
-        <h1 className="mt-3 text-center text-2xl font-medium tracking-tight text-white">{title}</h1>
+        <div className="flex justify-center"><Wordmark /></div>
+        <h1 className="mt-5 text-center text-[30px] font-semibold tracking-[-0.025em] text-white">{title}</h1>
         {note && <p className="mt-3 text-center text-[13px] text-white/45">{note}</p>}
         <form onSubmit={submit} className="glass mt-8 space-y-3 rounded-[24px] p-5">
           <input
