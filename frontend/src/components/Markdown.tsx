@@ -1,4 +1,4 @@
-// A small, safe Markdown renderer for council output: headings, paragraphs, lists,
+// A small, safe Markdown renderer for assembly output: headings, paragraphs, lists,
 // tables, **bold**, _italic_ and `code`. Everything is rendered as React text, never HTML.
 
 import { Fragment, type ReactNode } from "react";

@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import select
 
+from app.config import GROUP_NAME
 from app.db import Task, Vote
 from app.devtools.council_script import reply
 from app.gateway import openrouter
@@ -19,7 +20,7 @@ from tests.test_debate import PRICES, SEATS, events
 
 
 class ScriptChat:
-    """Gateway stand-in that answers every prompt with the scripted council."""
+    """Gateway stand-in that answers every prompt with the scripted assembly."""
 
     def __init__(self, fail=()):
         self.prompts: list[tuple[str, str, str]] = []
@@ -263,9 +264,9 @@ def test_decide_debates_recommendations_not_nominations(session):
     assert not any("None" in e.content for e in m.entries if e.seat == "moderator")
 
 
-def test_decide_verdict_is_told_the_councils_decision(session):
+def test_decide_verdict_is_told_the_groups_decision(session):
     m, res, chat = run_mission(session, "Should I buy a Kindle or a Kobo?", mission="decide")
     verdicts = chat.steps("VERDICT")
     assert m.decision and verdicts
-    assert f"The council's decision: {m.decision.proposal['title']}" in verdicts[-1][2]
+    assert f"The {GROUP_NAME}'s decision: {m.decision.proposal['title']}" in verdicts[-1][2]
     assert m.decision.proposal["title"] in m.deliverable

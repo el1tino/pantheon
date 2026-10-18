@@ -4,7 +4,7 @@ import { siteUrl } from "@/lib/api";
 import { useRunInfo } from "@/lib/chamber/runInfo";
 
 /**
- * The council's site, live. `allow-scripts` without `allow-same-origin` gives the page an
+ * The assembly's site, live. `allow-scripts` without `allow-same-origin` gives the page an
  * opaque origin: its JavaScript runs, but it can't read the app's cookies or storage. The
  * backend's CSP stops it from making network requests, and its form-action 'none' means
  * `allow-forms` only lets the page's own submit handlers run, never send anything.

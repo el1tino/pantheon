@@ -4,11 +4,11 @@ Oct 17, 2026 · @dan
 
 ## Vision
 
-Pantheon is a web app where the leading AI models from different providers meet as a council, debate a goal you give them, divide the work by their strengths, and build the result together while you watch.
+Pantheon is a web app where the leading AI models from different providers meet as an assembly, debate a goal you give them, divide the work by their strengths, and build the result together while you watch.
 
 One-line pitch: give one prompt and watch Claude, GPT, Gemini, DeepSeek and others negotiate a plan and deliver it. The prompt can be anything people use AI for: a question, an email or essay, a trip or meal plan, a decision between products, a topic to learn, an app to build, a logo, or "come up with a business idea and create everything for it".
 
-The live council meeting is the product's signature. It must look cinematic, sleek and alive, so a screen recording of it sells the product on its own.
+The live assembly meeting is the product's signature. It must look cinematic, sleek and alive, so a screen recording of it sells the product on its own.
 
 What Pantheon delivers depends on the mission (see below): an answer, a finished piece of writing, a plan, a recommendation, a lesson, an app, images, or for a business launch the chosen idea, research, a business plan, brand identity, logo and images, a working website, marketing copy and a pitch deck. It does not register companies, handle money, book anything or act in the world; the user does that.
 
@@ -36,7 +36,7 @@ How the light missions work:
 - **Options phases** (Outline, Options, Approach, Concepts, Ideas): every seat proposes 1 to 3 options, then each seat scores the others' options anonymously from 1 to 5, never its own. The top 3 go to the user at the checkpoint, each with its average score.
 - **Making phases** (Draft, Detail, Lesson, Answer): the work is split by vote, as in Roles: seats put themselves forward for each part and the others vote. The rest review what was made.
 - **Critique and Check phases**: every reviewer must point at a specific part of the work. The maker answers and revises.
-- **Topics that need care.** For health, legal or money questions the council says plainly that it is not a professional, flags when the user should see one, and never presents a guess as fact.
+- **Topics that need care.** For health, legal or money questions the assembly says plainly that it is not a professional, flags when the user should see one, and never presents a guess as fact.
 
 ## How a Launch run works
 
@@ -48,17 +48,17 @@ A Launch run is a fixed sequence of six phases, with the user approving at three
 
 3.  **Research.** Search-capable models gather competitors, pricing and market notes. The others challenge weak assumptions.
 
-4.  **Roles.** No model has a fixed role. For each workstream (code, brand and images, copy, business plan and pitch deck, review), every model may put itself forward with a short pitch on why it is the best fit, drawing on what it showed in the earlier phases. The council then votes on who leads each workstream, and no model may vote for itself. A tie goes to the moderator. The moderator turns the result into a task plan. **Checkpoint 2: the user approves the plan and can swap any assignment.**
+4.  **Roles.** No model has a fixed role. For each workstream (code, brand and images, copy, business plan and pitch deck, review), every model may put itself forward with a short pitch on why it is the best fit, drawing on what it showed in the earlier phases. The assembly then votes on who leads each workstream, and no model may vote for itself. A tie goes to the moderator. The moderator turns the result into a task plan. **Checkpoint 2: the user approves the plan and can swap any assignment.**
 
 5.  **Build.** Workstreams run in parallel: code, brand and images, copy, business plan and pitch deck. Every artifact is reviewed by a different model than the one that made it. Agents post questions and blockers to a shared team board; a coordinator routes each one to the right teammate.
 
 6.  **Integrate.** Code is run and tested, and errors go back to the owner. A final consistency pass checks that name, colours and pricing match everywhere. **Checkpoint 3: the user reviews the deliverables and can request changes.**
 
-During any phase of any mission, the user can type into the council chat. Their message counts as a direct instruction from the client.
+During any phase of any mission, the user can type into the assembly chat. Their message counts as a direct instruction from the client.
 
-## Council seats
+## Assembly seats
 
-Pantheon ships with 13 chat-model seats from 13 providers, all reachable through OpenRouter. A run seats 7 by default (A to G), and the user can seat any mix of up to all 13. Seats have no predetermined roles: each model assumes a role during the run, and the council votes on who does what (see Roles above).
+Pantheon ships with 13 chat-model seats from 13 providers, all reachable through OpenRouter. A run seats 7 by default (A to G), and the user can seat any mix of up to all 13. Seats have no predetermined roles: each model assumes a role during the run, and the assembly votes on who does what (see Roles above).
 
 | Letter | Seat       | Provider    | Colour      |
 |--------|------------|-------------|-------------|
@@ -84,15 +84,15 @@ Pantheon ships with 13 chat-model seats from 13 providers, all reachable through
 
 **Configuration.** Seats live in config/seats.yaml: letter, name, provider, model ID, colour, voice ID and a sensitive_ok flag (no role: roles are voted on in each run). Model IDs change often, so copy current ones from [openrouter.ai/models](https://openrouter.ai/models). Providers' data policies differ; a seat with sensitive_ok: false never receives files the user marks as private.
 
-## The Council UI
+## The Assembly UI
 
-The Chamber shows the council as glowing letters on an arc above a central project core. Light travels between letters when they talk and down into the core when they build, and the core's live + and − counters show the project growing and being corrected in real time.
+The Chamber shows the assembly as glowing letters on an arc above a central project core. Light travels between letters when they talk and down into the core when they build, and the core's live + and − counters show the project growing and being corrected in real time.
 
 **Aesthetic direction.** Deep near-black background with a faint radial glow at the centre. Each model has one signature colour (for example Claude amber, GPT emerald, Gemini blue-violet, DeepSeek cyan) used for its letter, its pedestal, its arrows and its message accents. One clean sans-serif for UI, one monospace for code and costs. Motion is smooth and restrained: easing, soft glows, no bouncing. Think of a film's war room crossed with a premium developer tool.
 
 **Main screen layout (desktop).**
 
-- **The arc of seats (top).** Each seat is its letter (A, B, C…) in a large clean typeface and its signature colour, standing on a short glowing pedestal line. Letters sit on a gentle arc, outer seats lower and the centre highest, like a council bench. Up to 13 fit; fewer seats spread out evenly. Under each letter: its name, a role badge once the council has voted it into a role, and a small + / − count of its own contributions.
+- **The arc of seats (top).** Each seat is its letter (A, B, C…) in a large clean typeface and its signature colour, standing on a short glowing pedestal line. Letters sit on a gentle arc, outer seats lower and the centre highest, like an assembly bench. Up to 13 fit; fewer seats spread out evenly. Under each letter: its name, a role badge once the assembly has voted it into a role, and a small + / − count of its own contributions.
 
 - **Seat states.** Idle: dim, with a slow breathing glow. Thinking: the pedestal shimmers left to right and the letter pulses softly. Speaking: the letter brightens, grows about 10% and sends out an expanding ring, while a caption bubble above it streams the message's first line. Absent (provider failed): greyed letter on a dashed pedestal.
 
@@ -102,7 +102,7 @@ The Chamber shows the council as glowing letters on an arc above a central proje
 
 - **Communication lines (seat to seat).** When one model addresses another, an arc of light draws between the two letters in the speaker's colour, with a bright comet travelling along it in the direction of the message. The line's style shows the stance: steady white for a proposal, glowing green for agreement, flickering red for a challenge, dotted for a question.
 
-- **Broadcasts and votes.** A message to the whole council sends a ripple from the speaker across every letter. In a vote round, each voter fires a short beam at the idea's author, and the arc flashes in the winner's colour.
+- **Broadcasts and votes.** A message to the whole assembly sends a ripple from the speaker across every letter. In a vote round, each voter fires a short beam at the idea's author, and the arc flashes in the winner's colour.
 
 - **Trails and heat.** Lines fade over about 3 seconds, leaving faint trails that show who has been talking to whom. Pairs that argue a lot build a faint red haze between them; pairs that agree build a green one. Hovering a line shows the message it carried.
 
@@ -112,7 +112,7 @@ The Chamber shows the council as glowing letters on an arc above a central proje
 
 - **Top bar: phase tracker.** The six phases as a slim rail with the current phase glowing, plus the live cost meter against the budget cap.
 
-- **Bottom: the user's seat.** An "Address the council" input, plus pause and stop. A user message sends a white ripple up to every letter.
+- **Bottom: the user's seat.** An "Address the assembly" input, plus pause and stop. A user message sends a white ripple up to every letter.
 
 **Effects layer.** Lines, comets, ripples and sparks are drawn on one canvas layer (PixiJS) above the HTML interface, so dozens of effects stay smooth at 60 fps. With the operating system's reduced-motion setting on, motion is replaced by simple fades.
 
@@ -178,7 +178,7 @@ Everything a run does is stored as rows in one SQLite database, so any model can
 
 | Table     | Holds                              | Key fields                                                                   |
 |-----------|------------------------------------|------------------------------------------------------------------------------|
-| runs      | One council session                | id, goal, status, phase, budget_usd, spent_usd, created_at, owner_id, public, site_key |
+| runs      | One assembly session                | id, goal, status, phase, budget_usd, spent_usd, created_at, owner_id, public, site_key |
 | seats     | Models attending a run             | run_id, name, model_id, colour, role (assumed by vote)                       |
 | messages  | Everything said in the Chamber     | run_id, seat, phase, stance, reply_to, content, tokens, cost_usd             |
 | votes     | Scores and approvals               | run_id, phase, voter_seat, target, score                                     |
@@ -273,7 +273,7 @@ Export this doc as Markdown, put it in an empty project folder as PANTHEON_SPEC.
 
 ```text
 Read PANTHEON_SPEC.md fully. It describes Pantheon, a web app where AI models
-from different providers debate and build things together in a live council UI.
+from different providers debate and build things together in a live assembly UI.
 
 1. Create CLAUDE.md summarising the stack, folder layout, guardrails and the
    rule that we build one milestone at a time.

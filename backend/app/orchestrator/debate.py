@@ -22,7 +22,7 @@ from typing import Any, Literal
 
 from sqlmodel import Session
 
-from app.config import APP_NAME, get_settings
+from app.config import APP_NAME, GROUP_NAME, get_settings
 from app.db import Artifact, Message, Run, Seat, Vote
 from app.events.log import EventLog
 from app.gateway import openrouter
@@ -46,7 +46,7 @@ PauseFn = Callable[[Budget, BudgetExceeded], Awaitable[float | None]]
 Mode = Literal["open", "discuss", "vote"]
 
 MODERATOR = "moderator"
-CLIENT = "client"  # the user, speaking into the council chat
+CLIENT = "client"  # the user, speaking into the assembly chat
 TOKEN_FLUSH_S = 0.066  # batch streamed text into ~15 token events per second
 DIFF_FEED_MAX_LINES = 40
 
@@ -66,7 +66,7 @@ _TURN: contextvars.ContextVar[list | None] = contextvars.ContextVar("pantheon_tu
 
 
 class RunStopped(Exception):
-    def __init__(self, reason: str = "The run was stopped before the council finished."):
+    def __init__(self, reason: str = f"The run was stopped before the {GROUP_NAME} finished."):
         super().__init__(reason)
         self.reason = reason
 
@@ -286,10 +286,10 @@ class Debate:
     def _system_prompt(self, seat: SeatConfig) -> str:
         others = ", ".join(f"{s.letter} {s.name}" for s in self.seats if s.letter != seat.letter)
         return (
-            f"You are {seat.name}, seat {seat.letter} on the {APP_NAME} council: AI models from "
+            f"You are {seat.name}, seat {seat.letter} on the {APP_NAME} {GROUP_NAME}: AI models from "
             f"different providers working on a client's goal together.\n"
             f"Other members: {others or 'none'}.\n"
-            "Nobody has a fixed role. Later the council will decide who does what: each member "
+            f"Nobody has a fixed role. Later the {GROUP_NAME} will decide who does what: each member "
             "puts itself forward for the work it is best at and the others vote. Show your "
             "strengths through what you contribute now.\n"
             + (f"{self.mission_brief}\n" if self.mission_brief else "")
@@ -337,7 +337,7 @@ class Debate:
                 '- "challenge" with reply_to set to the message you dispute;\n'
                 '- "propose" a new or revised proposal (fill in "proposal");\n'
                 '- "question" with reply_to set to the message you are asking about.\n'
-                "If the council has converged, agree with the leading proposal so the debate can close."
+                f"If the {GROUP_NAME} has converged, agree with the leading proposal so the debate can close."
             )
         options = "\n".join(
             f"- {c.id} by {c.seat}: {_proposal_title(c.proposal)}"
@@ -642,7 +642,7 @@ class Debate:
         return None
 
     def add_client_message(self, text: str) -> Entry:
-        """The user spoke into the council chat. Every later prompt includes it."""
+        """The user spoke into the assembly chat. Every later prompt includes it."""
         self._new_turn()
         return self._add(CLIENT, "client", AgentReply(stance=Stance.REPORT, content=text), record=False)
 
@@ -764,7 +764,7 @@ class Debate:
     async def _tiebreak(self, tied: list[Entry]) -> Entry:
         options = "\n".join(f"- {c.id} by {c.seat}: {_proposal_title(c.proposal)}" for c in tied)
         messages = [
-            {"role": "system", "content": f"You are the neutral moderator of the {APP_NAME} council."},
+            {"role": "system", "content": f"You are the neutral moderator of the {APP_NAME} {GROUP_NAME}."},
             {"role": "user", "content": (
                 f"GOAL: {self.goal}\n\nTRANSCRIPT:\n{self._transcript_text()}\n\n"
                 f"The vote is tied between:\n{options}\n"
@@ -791,7 +791,7 @@ class Debate:
         else:
             outcome = "No proposal was decided."
         messages = [
-            {"role": "system", "content": f"You are the neutral moderator of the {APP_NAME} council."},
+            {"role": "system", "content": f"You are the neutral moderator of the {APP_NAME} {GROUP_NAME}."},
             {"role": "user", "content": (
                 f"GOAL: {self.goal}\n\nTRANSCRIPT:\n{self._transcript_text()}\n\n{outcome}\n"
                 "Write the moderator summary in Markdown, under 200 words, with the sections "

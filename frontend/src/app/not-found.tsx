@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { APP_NAME } from "@/lib/app";
+import { APP_NAME, THE_GROUP } from "@/lib/app";
 
 export default function NotFound() {
   return (
@@ -7,7 +7,7 @@ export default function NotFound() {
       <p className="text-[13px] font-semibold uppercase tracking-[0.5em] text-white/80">{APP_NAME}</p>
       <p className="mt-4 text-[15px] text-white/75">There&apos;s nothing here.</p>
       <Link href="/" className="mt-6 text-[13px] text-amber-100/80 hover:text-amber-100">
-        Back to the council
+        Back to {THE_GROUP}
       </Link>
     </main>
   );

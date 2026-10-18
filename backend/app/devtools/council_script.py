@@ -1,4 +1,4 @@
-"""Scripted council replies for the practice server and the tests. No model involved.
+"""Scripted assembly replies for the practice server and the tests. No model involved.
 
 Given the exact prompt a seat or the moderator would receive, `reply()` returns a plausible
 answer in the right format, so every mission step can run without an API key. Replies are
@@ -9,6 +9,8 @@ import hashlib
 import json
 import random
 import re
+
+from app.config import GROUP_NAME
 
 ANGLES = [
     ("Studio", "a premium, design-led take aimed at people who pay for quality"),
@@ -29,7 +31,7 @@ CHALLENGES = [
 ]
 AGREES = [
     "This is the one. Narrow enough to deliver, with a clear payoff for the client.",
-    "Agreed. It plays to what this council can actually do end to end.",
+    f"Agreed. It plays to what this {GROUP_NAME} can actually do end to end.",
     "I'm convinced. The angle is sharp and the first version is small.",
     "Backing this. The challenge was fair, and the answer holds up.",
 ]
@@ -189,7 +191,7 @@ class Script:
         name = title.group(1) if title else "This part"
         subject = _keyword(self.goal).lower()
         body = (
-            f"**{name}.** Revised after the council's notes: for \"{self.goal}\", the key point is "
+            f"**{name}.** Revised after the {GROUP_NAME}'s notes: for \"{self.goal}\", the key point is "
             f"specific. Lead with the single most useful fact about {subject} and back it with a number.\n\n"
             f"- The main point about {subject}, with one checkable figure.\n"
             "- A worked example the client can copy.\n"
@@ -412,7 +414,7 @@ class Script:
         title, how = (m.group(3), m.group(4)) if m else ("no proposal", "none")
         return (
             f"**Decision**\n\n{title}, reached by {how}.\n\n"
-            "**Why**\n\nIt is the narrowest option with a believable payoff, and the council can "
+            f"**Why**\n\nIt is the narrowest option with a believable payoff, and the {GROUP_NAME} can "
             "deliver a first version itself.\n\n"
             "**Open objections**\n\n- The costs are still a guess.\n- It needs testing with real people.\n\n"
             "**Next steps**\n\n- Check the numbers.\n- Draft the first version."
@@ -425,13 +427,13 @@ class Script:
             built = re.findall(r"^- t\d+ ([^:]+): ([^(]+) \(built by ([A-M]), reviewed by ([A-M])", work, re.M)
             rows = "\n".join(f"| {files.strip()} | {name} | {by} | {rev} |" for name, files, by, rev in built)
             kit = "launch kit" if "docs/business-plan.md" in work else "site"
-            return (f"# {title}\n\n{summary}\n\n## What the council built\n\n| Files | Task | Built by | "
+            return (f"# {title}\n\n{summary}\n\n## What the {GROUP_NAME} built\n\n| Files | Task | Built by | "
                     f"Reviewed by |\n|---|---|---|---|\n{rows}\n\n## How to open it\n\nOpen the Vault and "
                     f"choose **Preview**, or download `site/index.html` with its CSS and JS files and open it "
                     f"in a browser. The {kit} is plain HTML, CSS and JavaScript, with no server needed.\n")
         sections = re.findall(r"^### p\d+: (.+?) \(by [A-M]\)\n(.*?)(?=^### p\d+:|\Z)", work, re.M | re.S)
-        decided = re.search(r"The council's decision: ([^.\n]+)", self.user)
-        heading = f"# {_keyword(self.goal)}: the council's result"
+        decided = re.search(rf"The {re.escape(GROUP_NAME)}'s decision: ([^.\n]+)", self.user)
+        heading = f"# {_keyword(self.goal)}: the {GROUP_NAME}'s result"
         if sections:
             body = "\n\n".join(f"## {t}\n\n{txt.strip()}" for t, txt in sections)
             if "comparison table" in self.user:
@@ -446,7 +448,7 @@ class Script:
                         f"\n\n{body}\n\n_Prices are unverified estimates._")
             return f"{heading}\n\n{body}\n"
         return (f"{heading}\n\n**Short answer:** it depends most on your situation, but for most "
-                f"people the council recommends starting small and checking one number first.\n\n"
+                f"people the {GROUP_NAME} recommends starting small and checking one number first.\n\n"
                 "**Why:** members agreed the simplest option is the most likely to work; one member "
                 "felt the cost was underestimated.\n\n_This is not professional advice._\n")
 

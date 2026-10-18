@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { usd } from "./TopBar";
+import { GROUP_NAME } from "@/lib/app";
 
 type Props = {
   spent: number;
@@ -41,7 +42,7 @@ export default function BudgetCard({ spent, cap, estimate, onRaise, onStop }: Pr
         style={{ boxShadow: "0 0 60px rgba(248,113,113,0.12)" }}
       >
         <div className="mb-1 text-[10px] uppercase tracking-[0.3em] text-red-300/80">Budget cap reached</div>
-        <h2 className="mb-3 text-lg font-medium text-white">The council has paused.</h2>
+        <h2 className="mb-3 text-lg font-medium text-white">The {GROUP_NAME} has paused.</h2>
         <p className="mb-5 text-[13px] leading-relaxed text-white/60">
           It has spent <span className="font-mono text-white/85">{usd(spent)}</span> of{" "}
           <span className="font-mono text-white/85">{usd(cap)}</span>. The next call is estimated at{" "}

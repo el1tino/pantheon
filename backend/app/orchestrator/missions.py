@@ -6,7 +6,7 @@ building blocks every mission shares:
   open        every seat makes an opening proposal (debate round 1)
   discuss     debate rounds with early stop on consensus (and a vote, if decide=True)
   options     seats propose 1-3 options, score the others anonymously, the client picks
-  consolidate the moderator merges the council's suggestions into options + criteria
+  consolidate the moderator merges the assembly's suggestions into options + criteria
   make        the work is split into parts, seats nominate themselves, the others vote,
               and each winner writes their part
   critique    reviewers point at a specific passage in someone else's part
@@ -22,7 +22,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.config import APP_NAME, get_settings
+from app.config import APP_NAME, GROUP_NAME, get_settings
 from app.db import Task, Vote
 from app.orchestrator import sandbox
 from app.orchestrator.building import BuildMixin
@@ -93,7 +93,7 @@ MISSIONS: dict[str, Mission] = {
     for m in [
         Mission(
             "ask", "Ask", "Questions, advice, explanations",
-            "Mission: ASK. The client asked a question or wants advice. Answer it as well as the council can.",
+            f"Mission: ASK. The client asked a question or wants advice. Answer it as well as the {GROUP_NAME} can.",
             "Answer",
             (
                 Phase("answer", "Answer", (Step(
@@ -102,7 +102,7 @@ MISSIONS: dict[str, Mission] = {
                 ),)),
                 Phase("debate", "Debate", (Step("discuss", rounds=2),)),
                 Phase("verdict", "Verdict", (Step(
-                    "verdict", "Write the council's final answer for the client in Markdown. Lead with the "
+                    "verdict", f"Write the {GROUP_NAME}'s final answer for the client in Markdown. Lead with the "
                     "direct answer, then the reasoning, then any point where members still disagree. "
                     "Under 350 words.",
                 ),)),
@@ -171,7 +171,7 @@ MISSIONS: dict[str, Mission] = {
                 )),
                 Phase("recommendation", "Recommendation", _review_tail(
                     "Write the recommendation in Markdown: a comparison table (options as rows, criteria "
-                    "as columns), the council's recommendation and why, and when a different option "
+                    f"as columns), the {GROUP_NAME}'s recommendation and why, and when a different option "
                     "would be the better choice. Mark unverified facts. Output only the document."
                 )),
             ),
@@ -208,7 +208,7 @@ MISSIONS: dict[str, Mission] = {
                     "static site (HTML, CSS and JavaScript, no server).",
                 ),)),
                 Phase("roles", "Roles", (Step(
-                    "workstreams", "The council is building a small static website for the chosen idea.",
+                    "workstreams", f"The {GROUP_NAME} is building a small static website for the chosen idea.",
                 ),)),
                 Phase("build", "Build", (Step("build"),)),
                 Phase("integrate", "Integrate", (
@@ -223,7 +223,7 @@ MISSIONS: dict[str, Mission] = {
         ),
         Mission(
             "create", "Create", "Logos, illustrations, image sets",
-            "Mission: CREATE. The client wants images (a logo, illustrations, a set) made by the council's "
+            f"Mission: CREATE. The client wants images (a logo, illustrations, a set) made by the {GROUP_NAME}'s "
             "image consultants.",
             "Gallery",
             (
@@ -232,7 +232,7 @@ MISSIONS: dict[str, Mission] = {
                     "colours and what the images show.",
                 ),)),
                 Phase("create", "Create", (
-                    Step("create", "The council is making images for the chosen concept."),
+                    Step("create", f"The {GROUP_NAME} is making images for the chosen concept."),
                     Step("verdict", "Write the gallery notes in Markdown: for each image, its file, what it "
                                     "shows, the prompt and the consultant, and how to use it. Output only the notes."),
                     Step("review"),
@@ -255,7 +255,7 @@ MISSIONS: dict[str, Mission] = {
                     Step("revise"),
                 )),
                 Phase("roles", "Roles", (Step(
-                    "workstreams", "The council is building the launch kit for the chosen business: a "
+                    "workstreams", f"The {GROUP_NAME} is building the launch kit for the chosen business: a "
                     "landing page (static site), marketing copy and a launch plan, and a business plan with "
                     "pitch deck text, using the research.",
                 ),)),
@@ -264,7 +264,7 @@ MISSIONS: dict[str, Mission] = {
                     Step("integrate"),
                     Step("consistency"),
                     Step("verdict", "Write a launch kit summary in Markdown: the business in two sentences, "
-                                    "what the council built (site and documents), the check results (cite "
+                                    f"what the {GROUP_NAME} built (site and documents), the check results (cite "
                                     "the check log) and the first five things the founder should do. Output "
                                     "only the summary."),
                     Step("review"),
@@ -419,7 +419,7 @@ class MissionRun(CreateMixin, IntegrateMixin, BuildMixin, Debate):
         return "\n".join(f"- {n}" for n in notes)
 
     def _direction(self) -> str:
-        """What the council has settled on so far, for prompts that skip the transcript."""
+        """What the assembly has settled on so far, for prompts that skip the transcript."""
         lines = []
         if self.chosen:
             lines.append(f"Chosen direction: {self.chosen.title}: {self.chosen.summary}")
@@ -429,7 +429,7 @@ class MissionRun(CreateMixin, IntegrateMixin, BuildMixin, Debate):
         if self.decision and self.decision.proposal:
             title = self.decision.proposal.get("title", "")
             summary = self.decision.proposal.get("summary", "")
-            lines.append(f"The council's decision: {title}. {summary}".strip())
+            lines.append(f"The {GROUP_NAME}'s decision: {title}. {summary}".strip())
         notes = self._client_notes()
         if notes:
             lines.append(f"CLIENT instructions (follow these):\n{notes}")
@@ -445,7 +445,7 @@ class MissionRun(CreateMixin, IntegrateMixin, BuildMixin, Debate):
 
     async def _moderator_json(self, label: str, instruction: str, context: str) -> dict[str, Any] | None:
         messages = [
-            {"role": "system", "content": f"You are the neutral moderator of the {APP_NAME} council."},
+            {"role": "system", "content": f"You are the neutral moderator of the {APP_NAME} {GROUP_NAME}."},
             {"role": "user", "content": f"GOAL: {self.goal}\n\n{context}\n\n{label}. {instruction}"},
         ]
         await self._gate()
@@ -497,10 +497,10 @@ class MissionRun(CreateMixin, IntegrateMixin, BuildMixin, Debate):
         key = str((data or {}).get("mission", "")).strip().lower()
         reason = str((data or {}).get("reason", "")).strip() or "It fits the goal best."
         if key in MISSIONS and not MISSIONS[key].available:
-            reason = f"{MISSIONS[key].label} isn't available yet, so the council will plan it instead."
+            reason = f"{MISSIONS[key].label} isn't available yet, so the {GROUP_NAME} will plan it instead."
             key = "plan"
         if key not in MISSIONS:
-            key, reason = "ask", "The goal reads as a question, so the council will answer it."
+            key, reason = "ask", f"The goal reads as a question, so the {GROUP_NAME} will answer it."
         m = MISSIONS[key]
         self._moderator_note("mission", f"Mission: {m.label}. {reason}")
         return m, reason
@@ -532,7 +532,7 @@ class MissionRun(CreateMixin, IntegrateMixin, BuildMixin, Debate):
             decision = self._consensus(replies)
             if decision:
                 self.decision = decision
-                self._moderator_note("consensus", f"The council agrees on {decision.id}: "
+                self._moderator_note("consensus", f"The {GROUP_NAME} agrees on {decision.id}: "
                                                   f"{decision.proposal.get('title') if decision.proposal else ''}.")
                 return
         if step.decide:
@@ -545,7 +545,7 @@ class MissionRun(CreateMixin, IntegrateMixin, BuildMixin, Debate):
     async def _step_consolidate(self, step: Step) -> None:
         data = await self._moderator_json(
             "STEP: CONSOLIDATE",
-            "Merge the council's suggestions into one list of the options to compare (at most 4) and "
+            f"Merge the {GROUP_NAME}'s suggestions into one list of the options to compare (at most 4) and "
             'the criteria that matter. Reply with only JSON: {"options": ["..."], "criteria": ["..."]}',
             f"TRANSCRIPT:\n{self._transcript_text()}",
         )
@@ -970,7 +970,7 @@ class MissionRun(CreateMixin, IntegrateMixin, BuildMixin, Debate):
         else:
             work = f"TRANSCRIPT:\n{self._transcript_text()}"
         messages = [
-            {"role": "system", "content": f"You are the neutral moderator of the {APP_NAME} council. "
+            {"role": "system", "content": f"You are the neutral moderator of the {APP_NAME} {GROUP_NAME}. "
                                           "On health, legal or money topics, say plainly that this is "
                                           "not professional advice and flag when to see a professional."},
             {"role": "user", "content": f"GOAL: {self.goal}\n\n{self._direction()}\n\n{work}\n\n"
@@ -982,7 +982,7 @@ class MissionRun(CreateMixin, IntegrateMixin, BuildMixin, Debate):
                                 max_tokens=get_settings().verdict_max_tokens)
         if not text:
             text = "\n\n".join(f"## {p.title}\n\n{p.text}" for p in self.parts) or (
-                "The moderator was unavailable, so the council's work is in the transcript."
+                f"The moderator was unavailable, so the {GROUP_NAME}'s work is in the transcript."
             )
         self.deliverable = text.strip() + "\n"
         self._add(MODERATOR, "verdict", AgentReply(stance=Stance.REPORT, content=self.deliverable), record=False)

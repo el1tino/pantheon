@@ -179,7 +179,7 @@ In "Next steps", the line "One clear point" is too vague. Name the actual point 
 ## Research · Revise
 
 **[m38] F · Mistral** — _report → m29_  
-**Overview.** Revised after the council's notes: for "Invent a small business we could launch in a month, name it and build its website.", the key point is specific. Lead with the single most useful fact about website and back it with a number.
+**Overview.** Revised after the assembly's notes: for "Invent a small business we could launch in a month, name it and build its website.", the key point is specific. Lead with the single most useful fact about website and back it with a number.
 
 - The main point about website, with one checkable figure.
 - A worked example the client can copy.
@@ -187,7 +187,7 @@ In "Next steps", the line "One clear point" is too vague. Name the actual point 
 
 
 **[m39] C · Gemini** — _report → m31_  
-**Next steps.** Revised after the council's notes: for "Invent a small business we could launch in a month, name it and build its website.", the key point is specific. Lead with the single most useful fact about website and back it with a number.
+**Next steps.** Revised after the assembly's notes: for "Invent a small business we could launch in a month, name it and build its website.", the key point is specific. Lead with the single most useful fact about website and back it with a number.
 
 - The main point about website, with one checkable figure.
 - A worked example the client can copy.
@@ -358,7 +358,7 @@ Applied the review: tightened the copy and fixed the details.
 
 A two-sided marketplace that takes a small cut of each match.
 
-## What the council built
+## What the assembly built
 
 | Files | Task | Built by | Reviewed by |
 |---|---|---|---|

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { GROUP_NAME, THE_GROUP } from "@/lib/app";
 
 type Props = {
   status: string;
@@ -12,7 +13,7 @@ type Props = {
   onSend: (text: string) => Promise<void>;
 };
 
-/** The user's seat: address the council, pause, stop. */
+/** The user's seat: address the assembly, pause, stop. */
 export default function BottomBar({ status, busy, atCheckpoint, onPause, onResume, onStop, onSend }: Props) {
   const active = status === "running" || status === "paused" || status === "checkpoint";
   const [text, setText] = useState("");
@@ -40,7 +41,7 @@ export default function BottomBar({ status, busy, atCheckpoint, onPause, onResum
           onChange={(e) => setText(e.target.value)}
           disabled={!active || sending}
           maxLength={2000}
-          placeholder={active ? "Address the council…" : "The council has adjourned"}
+          placeholder={active ? `Address ${THE_GROUP}…` : `The ${GROUP_NAME} has adjourned`}
           className="glass-well h-10 min-w-0 flex-1 rounded-xl px-3.5 text-[13px] text-white outline-none placeholder:text-white/25 disabled:cursor-not-allowed"
         />
         <button

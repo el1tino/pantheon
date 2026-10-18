@@ -4,7 +4,7 @@
 
 # Pantheon
 
-**A council of AI models from different providers that debates your goal, votes on who does what, and builds the result while you watch.**
+**An assembly of AI models from different providers that debates your goal, votes on who does what, and builds the result while you watch.**
 
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
@@ -24,12 +24,12 @@
 
 ## What it is
 
-You give it a goal: a question, an email to write, a trip to plan, a decision, a topic to learn, a website or a whole business idea. Claude, GPT, Gemini, DeepSeek, Grok, Mistral and up to seven more models sit as a council in the **Chamber**, a live view where you watch them work:
+You give it a goal: a question, an email to write, a trip to plan, a decision, a topic to learn, a website or a whole business idea. Claude, GPT, Gemini, DeepSeek, Grok, Mistral and up to seven more models sit as an assembly in the **Chamber**, a live view where you watch them work:
 
 - **They debate.** Each model proposes, challenges and agrees in the open. Options are scored anonymously, so no model knows whose idea it's rating.
 - **They vote on roles.** No model has a fixed job. Each one puts itself forward for the part it's best at, and the others vote. Nobody can vote for themselves.
 - **They build.** Builders write real files in parallel, a different model reviews each part, the site runs in a locked-down Docker container, and any errors go back to whoever wrote that file.
-- **You stay in charge.** You pick between the top options, approve the plan, review the result, and can message the council at any time. A hard budget cap pauses the run before it overspends.
+- **You stay in charge.** You pick between the top options, approve the plan, review the result, and can message the assembly at any time. A hard budget cap pauses the run before it overspends.
 
 ## How a run works
 
@@ -38,7 +38,7 @@ flowchart LR
     G([Your goal]) --> M{Mission<br/>Auto picks one}
     M --> O[Seats propose options<br/>scored anonymously]
     O --> P{{You pick}}
-    P --> R[Seats nominate themselves,<br/>the council votes on roles]
+    P --> R[Seats nominate themselves,<br/>the assembly votes on roles]
     R --> B[Build in parallel,<br/>each part reviewed by another model]
     B --> I[Run in Docker,<br/>errors back to their owners]
     I --> V{{You review}}
@@ -65,7 +65,7 @@ Leave it on **Auto** and the moderator reads your goal, picks the mission and sa
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/milestone-4-pick.png" alt="Pick checkpoint"><br><sub><b>Pick.</b> The council's top options, scored anonymously. You choose.</sub></td>
+    <td width="50%"><img src="docs/milestone-4-pick.png" alt="Pick checkpoint"><br><sub><b>Pick.</b> The assembly's top options, scored anonymously. You choose.</sub></td>
     <td width="50%"><img src="docs/milestone-5-plan.png" alt="Plan checkpoint"><br><sub><b>Plan.</b> Roles were voted in. Change any owner or reviewer, then approve.</sub></td>
   </tr>
   <tr>
@@ -80,7 +80,7 @@ Leave it on **Auto** and the moderator reads your goal, picks the mission and sa
 
 <p align="center"><img src="docs/milestone-7-phone.png" width="260" alt="A review on a phone"><br><sub>It works on phones too: the transcript becomes a bottom sheet.</sub></p>
 
-<sub>These screenshots were taken with the built-in practice council, so the replies are scripted. Model logos are trademarks of their owners, shown only to identify each model; no affiliation or endorsement is implied. The logo files come from <a href="https://github.com/lobehub/lobe-icons">Lobe Icons</a> (MIT).</sub>
+<sub>These screenshots were taken with the built-in practice assembly, so the replies are scripted. Model logos are trademarks of their owners, shown only to identify each model; no affiliation or endorsement is implied. The logo files come from <a href="https://github.com/lobehub/lobe-icons">Lobe Icons</a> (MIT).</sub>
 
 ## Quick start
 
@@ -102,16 +102,16 @@ cd frontend && npm install && npm run dev
 
 **On Windows, the easy way:** after installing the tools, double-click **`start.bat`** in the `pantheon` folder. The first time, it opens Notepad so you can fill in `.env`. It then installs everything, starts the backend and the frontend in their own windows, and opens the browser. It keeps checking GitHub every minute and applies updates by itself: code changes reload on their own, and the servers restart when new packages arrive. To stop, close the three windows. (The script is `scripts/start.ps1`; it also runs in PowerShell 7 on a Mac.)
 
-Open **http://localhost:3000** and log in with your `ADMIN_EMAIL` account, which is created on first start. Pick a mission (or leave it on Auto), write a goal, choose the seats and a budget cap, and press **Convene the council**.
+Open **http://localhost:3000** and log in with your `ADMIN_EMAIL` account, which is created on first start. Pick a mission (or leave it on Auto), write a goal, choose the seats and a budget cap, and press **Convene the assembly**.
 
 > [!TIP]
 > Keep **One cheap model for every seat** ticked and the budget low while you try it out. The model IDs in `config/seats.yaml` change often, so check them at [openrouter.ai/models](https://openrouter.ai/models) before a real run.
 
 ### Try it without spending anything
 
-**Watch the demo.** The repo ships with a recorded Launch run with six seats. Open **Watch a demo** on the login page; no account or API key is needed. In the recording, the council picks an idea, votes on roles and builds a site. The first Docker check catches a bug, and the second passes after the builder fixes it.
+**Watch the demo.** The repo ships with a recorded Launch run with six seats. Open **Watch a demo** on the login page; no account or API key is needed. In the recording, the assembly picks an idea, votes on roles and builds a site. The first Docker check catches a bug, and the second passes after the builder fixes it.
 
-**Run the practice council.** `backend/scripts/fake_openrouter.py` stands in for OpenRouter and streams scripted replies for every mission, so you can drive the whole app for free:
+**Run the practice assembly.** `backend/scripts/fake_openrouter.py` stands in for OpenRouter and streams scripted replies for every mission, so you can drive the whole app for free:
 
 ```bash
 cd backend && uv run python scripts/fake_openrouter.py                         # terminal 1
@@ -120,7 +120,7 @@ cd backend && OPENROUTER_BASE_URL=http://127.0.0.1:9100/v1 OPENROUTER_API_KEY=fa
 cd frontend && npm run dev                                                    # terminal 3
 ```
 
-`--cps 80` makes the replies type more slowly. `--fail <model id>` makes that model fail, so you can see how the council carries on without it.
+`--cps 80` makes the replies type more slowly. `--fail <model id>` makes that model fail, so you can see how the assembly carries on without it.
 
 ## Deploy
 
@@ -156,7 +156,7 @@ docker compose up -d --build
 - **Project core:** every file a seat writes sends a pulse into the core, and the counters show lines added and removed. Click the core for the live diff feed.
 - **Top bar:** the mission's phase rail and the cost meter.
 - **Transcript, Board and Vault:** the drawer on the right holds every message, the task board and every file. On phones it becomes a bottom sheet.
-- **Your seat:** the bar at the bottom. Message the council at any time, or pause or stop the run. Reduced-motion settings swap the effects for simple fades.
+- **Your seat:** the bar at the bottom. Message the assembly at any time, or pause or stop the run. Reduced-motion settings swap the effects for simple fades.
 
 </details>
 
@@ -167,7 +167,7 @@ docker compose up -d --build
 - **Roles:** the moderator splits the work into parts or workstreams. Seats pitch for them, the others vote (never for themselves), and the moderator breaks ties. Each seat's badge shows the part it won.
 - **Critique and revise:** reviewers have to point at a specific passage in someone else's part, and the owner revises it.
 - **Your messages** reach every seat as a direct instruction from the client.
-- **Health, legal and money questions:** the council says it isn't a professional and flags when you should see one.
+- **Health, legal and money questions:** the assembly says it isn't a professional and flags when you should see one.
 
 </details>
 
@@ -245,7 +245,7 @@ backend/app/
   demo.py          demo import and export
   cli.py           debate, create-user, export-demo
 backend/runner/    the Docker image that checks generated sites
-backend/scripts/   fake_openrouter.py, the practice council
+backend/scripts/   fake_openrouter.py, the practice assembly
 frontend/src/
   app/             convene, login, invite, chamber, replay
   components/      the Chamber: seats, core, PixiJS effects, transcript, Board, Vault

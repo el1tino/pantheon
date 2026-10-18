@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { APP_NAME } from "@/lib/app";
+import { APP_NAME, CAP_A_GROUP, GROUP_NAME, THE_GROUP } from "@/lib/app";
 import DemoList from "@/components/DemoList";
 import SeatLogo from "@/components/SeatLogo";
 import TrademarkNote from "@/components/TrademarkNote";
@@ -83,10 +83,10 @@ function DemoScreen() {
     <main className="chamber-stage flex min-h-dvh flex-col items-center px-4 py-16 md:py-24">
       <div className="w-full max-w-md">
         <p className="text-center text-[13px] font-semibold uppercase tracking-[0.5em] text-white/80">{APP_NAME}</p>
-        <p className="mt-3 text-center text-2xl font-medium tracking-tight text-white">A council of AI models, at work</p>
+        <p className="mt-3 text-center text-2xl font-medium tracking-tight text-white">{CAP_A_GROUP} of AI models, at work</p>
         <p className="mt-3 text-center text-[13px] leading-relaxed text-white/45">
           Models from different providers debate a goal, vote on who does what and build the result. This is a
-          recorded run made with the built-in practice council, so its replies are scripted. New runs are
+          recorded run made with the built-in practice {GROUP_NAME}, so its replies are scripted. New runs are
           switched off here.
         </p>
         <DemoList className="mt-10" />
@@ -110,7 +110,7 @@ export default function ConveneForm() {
     return (
       <main className="chamber-stage flex min-h-dvh flex-col items-center justify-center px-4 text-center">
         <p className="text-[13px] font-semibold uppercase tracking-[0.5em] text-white/80">{APP_NAME}</p>
-        <p className="mt-4 text-[15px] text-white/75">Can&apos;t reach the council.</p>
+        <p className="mt-4 text-[15px] text-white/75">Can&apos;t reach {THE_GROUP}.</p>
         <p className="mt-2 text-[13px] text-white/40">Is the backend running? Locally it listens on port 8000.</p>
         <button onClick={() => window.location.reload()} className="mt-6 text-[13px] text-amber-100/80 hover:text-amber-100">
           Try again
@@ -172,7 +172,7 @@ function Convene({ user }: { user: User }) {
         >
           {APP_NAME}
         </motion.h1>
-        <p className="mt-3 text-center text-2xl font-medium tracking-tight text-white md:text-3xl">Convene the council</p>
+        <p className="mt-3 text-center text-2xl font-medium tracking-tight text-white md:text-3xl">Convene {THE_GROUP}</p>
 
         <form onSubmit={submit} className="glass mt-10 space-y-8 rounded-[28px] p-5 md:p-8">
           <div>
@@ -291,7 +291,7 @@ function Convene({ user }: { user: User }) {
             disabled={busy || picked.length === 0 || goal.trim().length < 3 || !(Number(budget) > 0)}
             className="w-full accent-button rounded-full py-3 text-[15px] font-medium transition-opacity disabled:opacity-40"
           >
-            {busy ? "Convening…" : "Convene the council"}
+            {busy ? "Convening…" : `Convene ${THE_GROUP}`}
           </button>
         </form>
 

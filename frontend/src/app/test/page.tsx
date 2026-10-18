@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { APP_NAME } from "@/lib/app";
+import { APP_NAME, THE_GROUP } from "@/lib/app";
 import { testCall, type TestCallResult } from "@/lib/api";
 
 export default function TestPage() {
-  const [prompt, setPrompt] = useState("Introduce yourself to the council in one sentence.");
+  const [prompt, setPrompt] = useState(`Introduce yourself to ${THE_GROUP} in one sentence.`);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TestCallResult | null>(null);
   const [error, setError] = useState<string | null>(null);

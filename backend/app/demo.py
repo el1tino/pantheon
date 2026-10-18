@@ -25,11 +25,13 @@ def _demo_dirs() -> list[Path]:
 
 
 def _unchanged(session: Session, run: Run, meta: dict, events: list[dict]) -> bool:
-    """Already imported from this same recording (the first event lists the seats, logos included)."""
+    """Already imported from this same recording: same run details and the very same events."""
     if run.phase != meta.get("phase") or run.spent_usd != meta.get("spent_usd"):
         return False
-    first = session.exec(select(Event).where(Event.run_id == run.id, Event.seq == 1)).first()
-    return bool(events) and first is not None and json.loads(first.payload_json) == events[0]["payload"]
+    rows = session.exec(select(Event).where(Event.run_id == run.id).order_by(Event.seq)).all()
+    return len(rows) == len(events) and all(
+        r.type == e["type"] and json.loads(r.payload_json) == e["payload"] for r, e in zip(rows, events, strict=True)
+    )
 
 
 def import_demos(session: Session) -> list[str]:
