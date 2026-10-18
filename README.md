@@ -12,6 +12,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-sandboxed-2496ED?style=flat-square&logo=docker&logoColor=white)
 ![OpenRouter](https://img.shields.io/badge/models-OpenRouter-6E56CF?style=flat-square)
+[![License: MIT](https://img.shields.io/badge/license-MIT-F5A524?style=flat-square)](LICENSE)
 
 [Quick start](#quick-start) · [Try it for free](#try-it-without-spending-anything) · [Deploy](docs/DEPLOY.md) · [Full spec](PANTHEON_SPEC.md)
 
@@ -258,3 +259,7 @@ Every setting is documented in [`.env.example`](.env.example). The full design, 
 ## Status
 
 All seven milestones in the spec are built: the skeleton, the debate engine, the live Chamber, missions and checkpoints, roles and building, images and integration, and Replay, the demo and deployment. "Pantheon" is a placeholder name. It's set in one place, `APP_NAME` in `backend/app/config.py`, which `frontend/src/lib/app.ts` mirrors.
+
+## License
+
+[MIT](LICENSE). Use it, change it, ship it.
