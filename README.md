@@ -1,207 +1,260 @@
+<div align="center">
+
+<img src="frontend/src/app/icon.svg" width="72" alt="">
+
 # Pantheon
 
-A council of AI models from different providers takes on anything people use AI for (a question, an email, a trip, a decision, a topic to learn, a business idea), debates it, splits the work by vote and delivers the result while you watch. The full spec is in [`PANTHEON_SPEC.md`](PANTHEON_SPEC.md). "Pantheon" is a placeholder name; it lives in `backend/app/config.py` (`APP_NAME`) and `frontend/src/lib/app.ts`.
+**A council of AI models from different providers that debates your goal, votes on who does what, and builds the result while you watch.**
 
-## Status
+![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
+![Next.js 15](https://img.shields.io/badge/Next.js-15-000000?style=flat-square&logo=nextdotjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-sandboxed-2496ED?style=flat-square&logo=docker&logoColor=white)
+![OpenRouter](https://img.shields.io/badge/models-OpenRouter-6E56CF?style=flat-square)
 
-All seven milestones in the spec are built.
+[Quick start](#quick-start) · [Try it for free](#try-it-without-spending-anything) · [Deploy](docs/DEPLOY.md) · [Full spec](PANTHEON_SPEC.md)
 
-- Milestone 1 (Skeleton) is done: FastAPI, Next.js and SQLite, with one OpenRouter call going end to end.
-- Milestone 2 (Debate engine) is done: seats debate a goal in the terminal with round limits, a majority vote, a moderator summary and a hard budget cap, and the transcript is saved.
-- Milestone 3 (The Chamber, live) is done: convene a council in the browser and watch the debate play out live.
-- Milestone 4 (Missions, voting and checkpoints) is done: Ask, Write, Plan, Decide and Learn run end to end, and Launch runs to its idea checkpoint. Options are scored anonymously, you pick at checkpoints and review the result, and you can address the council at any time.
-- Milestone 5 (Roles and building) is done: Build produces a multi-file website, and Launch now goes through Research, Roles and Build to a site plus business documents. Workstream leads are voted in, you approve the task plan, builders work in parallel with reviews, and the Board and the Vault show it all, including a live preview of the site.
-- Milestone 6 (Images and integration) is done: image consultants and the Create mission; Build and Launch now end with an Integrate phase that runs the site in a locked-down Docker container, sends errors back to their owners, makes sure the site uses its own logo and checks name, colours and prices for consistency. Claims of success without proof are marked unverified.
-- Milestone 7 (Replay, Demo mode and deployment) is done: login with invite-only accounts, Replay with a scrubber at 1× to 8×, a recorded demo that plays with no API calls, and a Docker Compose deployment behind Caddy with automatic HTTPS (see [`docs/DEPLOY.md`](docs/DEPLOY.md)).
+<br>
 
-No seat has a fixed role. Later in a run, each model puts itself forward for the work it's best at and the council votes on who does what.
+<img src="docs/milestone-7-replay.png" alt="The Chamber: six models on an arc, lines of light between them as they agree and challenge, the transcript on the right" width="900">
 
-![The Chamber, mid-debate](docs/milestone-3-chamber-live.png)
+</div>
 
-![A finished Write run: roles voted in, decided by you](docs/milestone-4-done.png)
+## What it is
 
-## Requirements
+You give it a goal: a question, an email to write, a trip to plan, a decision, a topic to learn, a website or a whole business idea. Claude, GPT, Gemini, DeepSeek, Grok, Mistral and up to seven more models sit as a council in the **Chamber**, a live view where you watch them work:
 
-Python 3.12, [uv](https://docs.astral.sh/uv/), Node.js 20+ and an [OpenRouter](https://openrouter.ai) key. Set a spending limit on the key.
+- **They debate.** Each model proposes, challenges and agrees in the open. Options are scored anonymously, so no model knows whose idea it's rating.
+- **They vote on roles.** No model has a fixed job. Each one puts itself forward for the part it's best at, and the others vote. Nobody can vote for themselves.
+- **They build.** Builders write real files in parallel, a different model reviews each part, the site runs in a locked-down Docker container, and any errors go back to whoever wrote that file.
+- **You stay in charge.** You pick between the top options, approve the plan, review the result, and can message the council at any time. A hard budget cap pauses the run before it overspends.
 
-For the Integrate phase (Build and Launch), install [Docker](https://docs.docker.com/get-docker/) and build the runner image once:
+## How a run works
 
-```bash
-docker build -t pantheon-runner:1 backend/runner
+```mermaid
+flowchart LR
+    G([Your goal]) --> M{Mission<br/>Auto picks one}
+    M --> O[Seats propose options<br/>scored anonymously]
+    O --> P{{You pick}}
+    P --> R[Seats nominate themselves,<br/>the council votes on roles]
+    R --> B[Build in parallel,<br/>each part reviewed by another model]
+    B --> I[Run in Docker,<br/>errors back to their owners]
+    I --> V{{You review}}
+    V -- changes --> B
+    V -- accept --> D([Result, files and Replay])
 ```
 
-Without it, runs still finish, but the site is never run and anything that depends on that stays marked unverified.
+Each run has a **mission** that sets its phases and what it delivers. You decide at the steps in bold:
 
-Image keys are optional. Add any of `RECRAFT_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `BFL_API_KEY` (FLUX) or `SEEDREAM_API_KEY` to `.env`. With none, a free practice consultant draws simple SVG logos and banners on your machine.
-
-## Run it
-
-```bash
-cp .env.example .env          # then fill in OPENROUTER_API_KEY, ADMIN_EMAIL and ADMIN_PASSWORD (10+ characters)
-
-# Terminal 1: backend on :8000
-cd backend
-uv sync
-uv run uvicorn app.main:app --reload --port 8000
-
-# Terminal 2: frontend on :3000
-cd frontend
-npm install
-npm run dev
-```
-
-Open http://localhost:3000 and log in with the `ADMIN_EMAIL` account (it is created on first start). Pick a mission (or leave it on Auto), write a goal, pick the seats, set a budget cap and press **Convene the council**. The Chamber opens and the run plays live. http://localhost:3000/test still sends a single test call.
-
-### Missions
-
-| Mission | For | Phases (you decide at the bold ones) |
+| Mission | For | Phases |
 |---|---|---|
-| Ask | Questions, advice | Answer → Debate → Verdict |
-| Write | Emails, essays, cover letters, posts | **Outline** → Draft → Critique → **Revise** |
-| Plan | Trips, events, meals, workouts | **Options** → Detail → **Check** |
-| Decide | Choosing between products or offers | Criteria → Research → Debate → **Recommendation** |
-| Learn | Understanding a topic | **Approach** → Lesson → Quiz |
-| Build | Websites and small web apps | **Ideas** → **Roles** → Build → Integrate → **Review** |
-| Launch | A business from scratch | **Ideas** → Research → **Roles** → Build → Integrate → **Review**: a landing page, marketing copy, a launch plan, a business plan and pitch deck text |
-| Create | Logos, illustrations, image sets | **Concepts** → Create → **Review** the gallery |
+| **Ask** | Questions and advice | Answer → Debate → Verdict |
+| **Write** | Emails, essays, cover letters, posts | **Outline** → Draft → Critique → **Revise** |
+| **Plan** | Trips, events, meals, workouts | **Options** → Detail → **Check** |
+| **Decide** | Choosing between products or offers | Criteria → Research → Debate → **Recommendation** |
+| **Learn** | Understanding a topic | **Approach** → Lesson → Quiz |
+| **Build** | Websites and small web apps | **Ideas** → **Roles** → Build → Integrate → **Review** |
+| **Create** | Logos, illustrations, image sets | **Concepts** → Create → **Review** the gallery |
+| **Launch** | A business from scratch | **Ideas** → Research → **Roles** → Build → Integrate → **Review** |
 
-- **Auto:** the moderator reads the goal, picks the mission and says why.
-- **Options:** every seat proposes 1 to 3 options, and the others score them 1 to 5 without knowing who wrote them. No seat scores its own. You pick from the top 3, or ask for another round.
-- **No fixed roles:** the moderator splits the work into parts. Seats put themselves forward for parts, the others vote (never for themselves), and each winner writes its part. Each seat's badge shows the part it was voted into. If a seat's provider fails, its part goes to another seat.
-- **Critique and revise:** reviewers have to point at a specific passage in someone else's part, and the owner revises.
-- **Review:** you accept the result, or ask for changes and the council revises it. The result opens in the Chamber, with Copy and Download.
-- **Address the council:** type into the bar at the bottom at any time. Every seat sees your message as a direct instruction from the client.
+Leave it on **Auto** and the moderator reads your goal, picks the mission and says why.
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/milestone-4-pick.png" alt="Pick checkpoint"><br><sub><b>Pick.</b> The council's top options, scored anonymously. You choose.</sub></td>
+    <td width="50%"><img src="docs/milestone-5-plan.png" alt="Plan checkpoint"><br><sub><b>Plan.</b> Roles were voted in. Change any owner or reviewer, then approve.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/milestone-5-board.png" alt="The Board"><br><sub><b>The Board.</b> Every task, its owner and reviewer, as it moves through the build.</sub></td>
+    <td><img src="docs/milestone-6-review.png" alt="Review checkpoint with the site"><br><sub><b>Review.</b> The site itself, checked in Docker. A claim of success without proof is tagged <i>Unverified</i>.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/milestone-5-vault.png" alt="The Vault"><br><sub><b>The Vault.</b> Every file the run wrote, plus a sandboxed live preview of the site.</sub></td>
+    <td><img src="docs/milestone-6-gallery.png" alt="Create gallery"><br><sub><b>Create.</b> Images made by the image providers, each with its prompt and who asked for it.</sub></td>
+  </tr>
+</table>
+
+<p align="center"><img src="docs/milestone-7-phone.png" width="260" alt="A review on a phone"><br><sub>It works on phones too: the transcript becomes a bottom sheet.</sub></p>
+
+<sub>These screenshots were taken with the built-in practice council, so the replies are scripted.</sub>
+
+## Quick start
+
+You need Python 3.12 with [uv](https://docs.astral.sh/uv/), Node.js 20+, and an [OpenRouter](https://openrouter.ai) key with a spending limit set. [Docker](https://docs.docker.com/get-docker/) is optional; it's only used to run the sites that Build and Launch make.
+
+```bash
+git clone https://github.com/el1tino/pantheon.git && cd pantheon
+cp .env.example .env    # fill in OPENROUTER_API_KEY, ADMIN_EMAIL and ADMIN_PASSWORD (10+ characters)
+
+# Optional: the sandbox image for running generated sites
+docker build -t pantheon-runner:1 backend/runner
+
+# Terminal 1: the backend on :8000
+cd backend && uv sync && uv run uvicorn app.main:app --reload --port 8000
+
+# Terminal 2: the frontend on :3000
+cd frontend && npm install && npm run dev
+```
+
+Open **http://localhost:3000** and log in with your `ADMIN_EMAIL` account, which is created on first start. Pick a mission (or leave it on Auto), write a goal, choose the seats and a budget cap, and press **Convene the council**.
+
+> [!TIP]
+> Keep **One cheap model for every seat** ticked and the budget low while you try it out. The model IDs in `config/seats.yaml` change often, so check them at [openrouter.ai/models](https://openrouter.ai/models) before a real run.
+
+### Try it without spending anything
+
+**Watch the demo.** The repo ships with a recorded Launch run with six seats. Open **Watch a demo** on the login page; no account or API key is needed. In the recording, the council picks an idea, votes on roles and builds a site. The first Docker check catches a bug, and the second passes after the builder fixes it.
+
+**Run the practice council.** `backend/scripts/fake_openrouter.py` stands in for OpenRouter and streams scripted replies for every mission, so you can drive the whole app for free:
+
+```bash
+cd backend && uv run python scripts/fake_openrouter.py                         # terminal 1
+cd backend && OPENROUTER_BASE_URL=http://127.0.0.1:9100/v1 OPENROUTER_API_KEY=fake \
+  uv run uvicorn app.main:app --reload --port 8000                            # terminal 2
+cd frontend && npm run dev                                                    # terminal 3
+```
+
+`--cps 80` makes the replies type more slowly. `--fail <model id>` makes that model fail, so you can see how the council carries on without it.
+
+## Deploy
+
+One VPS, Docker Compose, and Caddy for automatic HTTPS:
+
+```bash
+cp .env.example .env    # set DOMAIN, DOCKER_GID, OPENROUTER_API_KEY, ADMIN_EMAIL, ADMIN_PASSWORD
+docker compose up -d --build
+```
+
+[`docs/DEPLOY.md`](docs/DEPLOY.md) covers the server setup, updates, backups and the security notes. For a public link that costs nothing, run a copy with `DEMO_MODE=true`: new runs are switched off and visitors can only watch the recorded demo.
+
+## Built-in safeguards
+
+| | |
+|---|---|
+| **Hard budget cap** | Each call's cost is estimated before it's sent and recorded after. The meter turns amber at 80%. At 100%, the run pauses and asks you. |
+| **Sandboxed code** | Generated sites run only in a fresh Docker container per check, with no network, a read-only filesystem, no secrets, no Linux capabilities, a non-root user, memory, CPU and process limits, and a 30-second timeout. |
+| **Sandboxed files** | Models can only write text files under `site/` or `docs/` in their run's folder. Any path that leads outside is rejected. Generated SVG is cleaned with an allowlist. |
+| **Secrets stay on the server** | API keys live only in the backend's `.env`. The browser never calls a model, and keys are never shown to any model. |
+| **Proof, not claims** | A message that says "it works now" has to point to a passing check log. Otherwise it is tagged *Unverified*. |
+| **Private accounts** | Sign-up is by invite only, with Argon2 passwords and HttpOnly session cookies. Each person sees only their own runs. |
+| **Model failure** | If a provider fails, its seat shows as absent, its work goes to another seat, and the run carries on. |
+| **Round limits** | Each discussion gets at most 3 rounds. Without agreement by then, a majority vote decides. |
+
+## Inside a run
+
+<details>
+<summary><b>The Chamber</b>: what you're looking at</summary>
+
+- **Arc of seats:** each model is a letter in its own colour. A seat dims when idle, shimmers while thinking, and grows with a caption bubble while speaking. A seat whose provider failed turns grey.
+- **Lines between seats:** white for a proposal, green for agreement, flickering red for a challenge, dotted for a question. Pairs that keep arguing or agreeing build up red or green haze. Hover a line to see the message it carried.
+- **Project core:** every file a seat writes sends a pulse into the core, and the counters show lines added and removed. Click the core for the live diff feed.
+- **Top bar:** the mission's phase rail and the cost meter.
+- **Transcript, Board and Vault:** the drawer on the right holds every message, the task board and every file. On phones it becomes a bottom sheet.
+- **Your seat:** the bar at the bottom. Message the council at any time, or pause or stop the run. Reduced-motion settings swap the effects for simple fades.
+
+</details>
+
+<details>
+<summary><b>Options, voting and roles</b></summary>
+
+- **Options:** every seat proposes 1 to 3 options, and the others score them 1 to 5 without knowing who wrote them. You pick from the top 3, or ask for another round.
+- **Roles:** the moderator splits the work into parts or workstreams. Seats pitch for them, the others vote (never for themselves), and the moderator breaks ties. Each seat's badge shows the part it won.
+- **Critique and revise:** reviewers have to point at a specific passage in someone else's part, and the owner revises it.
+- **Your messages** reach every seat as a direct instruction from the client.
 - **Health, legal and money questions:** the council says it isn't a professional and flags when you should see one.
 
-![Pick checkpoint](docs/milestone-4-pick.png)
+</details>
 
-### Building (Build and Launch)
+<details>
+<summary><b>Building</b> (Build and Launch)</summary>
 
-- **Roles:** the moderator proposes workstreams (for example copy, page structure, styling and interactivity). Seats pitch for them, the others vote (never for themselves), and a tie goes to the moderator. The moderator turns the result into a task plan. Every task has an owner, a reviewer who is always a different model, its files and its dependencies.
-- **Plan checkpoint:** you approve the plan and can change any owner or reviewer first. A task can't be reviewed by its own builder.
-- **Build:** tasks run in waves that respect their dependencies, with up to 3 at once. Builders write real files under `projects/<run_id>/site/` and `docs/`. A builder may ask a teammate one question through the Board, and the moderator routes it. Each reviewer either approves or asks for specific changes (at most 2 rounds). If a seat's provider fails, its task moves to another seat.
-- **Review:** you see the site itself in the review card. Asking for changes sends them to the tasks they affect.
-- **The Board** shows every task by status, with owner, reviewer, files and any question thread. **The Vault** shows every file: code with line numbers, documents rendered, and a live preview of the site.
-- **The preview is sandboxed.** It's served read-only by the backend with a strict content security policy (no network access, no forms sent anywhere) inside a sandboxed iframe, so the site's scripts can't reach the app or the internet. On the server, the site only ever runs inside the locked-down Docker container described below.
-- **How models write files:** a builder's reply is the usual JSON, followed by plain `=== FILE: path ===` … `=== END FILE ===` blocks. Paths must stay under `site/` or `docs/`, only text file types are allowed, and there's a size limit.
+- The moderator turns the voted roles into a task plan. Every task has an owner, a reviewer who is always a different model, files and dependencies. You approve the plan and can reassign anything first.
+- Tasks run in waves that respect their dependencies, up to 3 at a time. A builder can ask a teammate one question through the Board.
+- Each reviewer approves or asks for specific changes, with at most 2 rounds. If you ask for changes at the review, they go to the tasks they affect.
+- Builders reply in the usual JSON, followed by `=== FILE: path ===` … `=== END FILE ===` blocks.
+- Launch also writes marketing copy, a launch plan, a business plan and pitch-deck text.
+- The preview in the Vault is served with a strict Content Security Policy inside a sandboxed iframe, from a hard-to-guess per-run URL. Its scripts can't reach the app or the internet.
 
-![Plan checkpoint](docs/milestone-5-plan.png)
+</details>
 
-![The Board during a Launch build](docs/milestone-5-board.png)
+<details>
+<summary><b>Images and integration</b></summary>
 
-![The Vault with the live site preview](docs/milestone-5-vault.png)
+- **Image providers:** Recraft (vector, the default for logos), OpenAI, Gemini, FLUX and Seedream. Each one is available only when its key is in `.env`, and that key goes only to its own provider. With no keys, a free practice provider draws simple SVGs on your machine. Every image counts against the budget cap.
+- **Create:** seats are voted in as designers for each image, a different seat reviews each brief, a challenged image is regenerated once, and you review the gallery.
+- **Integrate:** the checker in `backend/runner/` loads every page with jsdom, runs its scripts, and reports script errors, missing files and a missing logo. Each error goes back to the owner of its file, with at most 2 fix loops. A consistency pass then checks that the name, colours and prices match across the site and the documents. Check logs are kept as `logs/check-N.json`.
 
-### Images and integration
+</details>
 
-- **Image consultants:** Recraft (vector; the default for logos), OpenAI images, Gemini image, FLUX and Seedream. Each one is only available if its key is in `.env`, and the key goes only to that provider. A builder asks for an image in its reply and picks the consultant. If that one isn't connected, the moderator says so and another one makes it. Every image passes through the budget cap. Generated SVG is cleaned with an allowlist: no scripts, no event handlers, no outside links.
-- **Create:** you pick a concept, seats are voted in as designers for each image, a different seat reviews each brief, a challenged image is regenerated once, and you review the gallery.
-- **Integrate:** the site runs in Docker using `backend/runner/`, and every check run gets a fresh container:
-  - no network
-  - a read-only filesystem
-  - only `site/` mounted, and read-only
-  - no environment variables (so no secrets)
-  - capped memory, CPU and processes
-  - no Linux capabilities and a non-root user
-  - a 30-second timeout
+<details>
+<summary><b>Replay and the demo</b></summary>
 
-  The checker loads every page with jsdom, runs its scripts, and reports script errors, missing files, syntax errors and whether the logo is used. Each error goes to the owner of its file, and the check runs again (at most 2 fix loops). If no logo was made, the page's owner gets one made. A consistency pass then compares the name, colours and prices across the site and the documents. Check logs are kept in `logs/check-N.json` and shown in the Vault.
-- **Fact-checking:** a message that claims success ("it works now", "tests pass") must list evidence (`"proposal": {"evidence": ["logs/check-2.json"]}`). A check log only counts if that check passed. Without valid evidence, the message shows an **Unverified** tag.
+- Every finished run has a **Replay** button. It plays the stored events back through the same Chamber at 1×, 2×, 4× or 8×, with long waits cut short.
+- The scrubber marks each phase and checkpoint. Drag it, or use the arrow keys and the space bar.
+- **Clean** hides the transcript and controls, for filming.
+- Turn a finished run into a demo with `uv run python -m app.cli export-demo RUN_ID SLUG`. That writes `demo/SLUG/`, which every server imports on start as a public, read-only run.
 
-![A failed check in the Vault](docs/milestone-6-check.png)
+</details>
 
-![Review: checked in Docker, with its own logo](docs/milestone-6-review.png)
+<details>
+<summary><b>Accounts</b></summary>
 
-![A Create gallery](docs/milestone-6-gallery.png)
-
-### Accounts
-
-Nobody can sign up without an invite. The owner account comes from `ADMIN_EMAIL` and `ADMIN_PASSWORD` on first start. On the home page the owner presses **Invite someone** to get a one-use link that expires after `INVITE_DAYS`. Each person sees and controls only their own runs. You can also add accounts from the terminal: `cd backend && uv run python -m app.cli create-user friend@example.com` (add `--owner` for another owner).
-
-### Replay and the demo
-
-- **Replay:** every finished run has a **Replay** button (or open `/replay/<run_id>`). It plays the stored events through the same Chamber at 1×, 2×, 4× or 8×. Long waits are cut short. The scrubber shows each phase as a tick and each checkpoint as an amber dot. Drag it, or use the arrow keys and the space bar. Effects only fire while playing. **Clean** hides the transcript and the controls for filming. Checkpoint cards show what was asked but can't be answered.
-- **Demo:** `demo/launch/` is a recorded Launch run with six seats. It covers the idea pick, research, role votes, the plan, a build whose first Docker check fails and is fixed, and the review. It was recorded with the practice council below, so its replies are scripted. It's imported as a public, read-only run on start, and anyone can watch it under **Watch a demo** without logging in. With `DEMO_MODE=true`, new runs are switched off and the home page only offers the demo. That's safe for a public link and needs no API key.
-- Record your own: finish a run, then `cd backend && uv run python -m app.cli export-demo RUN_ID SLUG` writes `demo/SLUG/`.
-
-![Replaying the demo at 8×: the scrubber shows phases and checkpoints](docs/milestone-7-replay.png)
-
-<img src="docs/milestone-7-phone.png" alt="A Build run's review on a phone, served over HTTPS by the Compose stack" width="300">
-
-### Deploy
-
-See [`docs/DEPLOY.md`](docs/DEPLOY.md): a VPS with Docker Compose, Caddy for HTTPS, and `docker compose up -d --build`.
-
-### Practice without spending anything
-
-`backend/scripts/fake_openrouter.py` stands in for OpenRouter and streams scripted replies for every mission step (from `backend/app/devtools/council_script.py`). Use it to work on the UI or film the Chamber for free:
+The owner account comes from `ADMIN_EMAIL` and `ADMIN_PASSWORD` on first start. The owner presses **Invite someone** to get a one-use link that expires after 7 days. You can also add accounts from the terminal:
 
 ```bash
-# Terminal 1: the practice server
-cd backend && uv run python scripts/fake_openrouter.py          # --cps 80 types slower
-
-# Terminal 2: the backend, pointed at it
-cd backend && OPENROUTER_BASE_URL=http://127.0.0.1:9100/v1 OPENROUTER_API_KEY=fake \
-  uv run uvicorn app.main:app --reload --port 8000
-
-# Terminal 3: the frontend as usual
-cd frontend && npm run dev
+cd backend && uv run python -m app.cli create-user friend@example.com   # --owner for another owner
 ```
 
-`--fail anthropic/claude-sonnet-4.5` makes that seat's provider fail, so you can see the absent state.
+</details>
 
-### The Chamber
-
-- **Arc of seats:** each seat's letter in its colour on a pedestal. A seat dims when idle, shimmers while thinking, and grows with a caption bubble while speaking. A seat whose provider failed turns grey on a dashed pedestal.
-- **Lines between seats:** white for a proposal, green for agreement, flickering red for a challenge, dotted for a question. A comet travels in the speaker's colour, and the line fades to a faint trail. Pairs that argue or agree build red or green haze between them. Hover a line to see the message it carried.
-- **Project core:** every file a seat writes sends a pulse down its arrow into the core. The odometer counters show lines added and removed. Click the core for the live diff feed. The files are whatever the run writes in `projects/<run_id>/`: notes, documents and the site.
-- **Top bar:** the phase rail and the cost meter, which turns amber at 80%. At the cap, the run pauses and a card asks you to raise it or stop.
-- **Transcript drawer:** streams every message. It collapses for demos, and on phones it becomes a bottom sheet.
-- **Pause and stop** take effect between turns. Reduced-motion settings swap the effects for simple fades.
-- Opening a run's link later replays the whole meeting from the event log, then continues live.
-
-## Run a debate in the terminal
+<details>
+<summary><b>A debate in the terminal</b></summary>
 
 ```bash
 cd backend
-uv run python -m app.cli debate "Come up with a name and positioning for a coffee subscription startup" \
-  --seats A,B,C,D --rounds 3 --budget 0.25
+uv run python -m app.cli debate "Name and position a coffee subscription startup" \
+  --seats A,B,C,D --rounds 3 --budget 0.25 --model-override openai/gpt-4o-mini
 ```
 
-- Round 1: every seat proposes. Rounds 2 and 3: seats agree, challenge, propose or question. If every present seat agrees with the same proposal, the debate ends early.
-- After the round limit, each seat votes for one proposal that isn't its own and the majority wins. The moderator (`MODERATOR_MODEL`) breaks ties and writes the summary.
-- Each call's cost is estimated before it's sent, using OpenRouter's price list, and the real cost is recorded after. At 80% of the cap you get an amber warning. If a call would pass the cap, the run pauses and asks for a new cap, or stops if you press Enter.
-- A seat whose provider fails shows as absent and the debate continues. An invalid reply is retried once with the error shown, then dropped.
-- The transcript is saved to `projects/<run_id>/transcript.md` and `transcript.json`. Every step is also stored in the `events` table for the live Chamber and Replay later.
-- For the cheapest test run, add `--model-override openai/gpt-4o-mini` so every seat uses one cheap model.
+Seats propose, then agree, challenge or question for up to 3 rounds. If they don't all agree, a majority vote decides. The transcript is saved to `projects/<run_id>/transcript.md`.
 
-The model IDs in `config/seats.yaml` change often. Check them at https://openrouter.ai/models before a real run.
+</details>
 
-## Checks
+## Development
 
 ```bash
-cd backend && uv run pytest        # mocked gateway, no API cost; the `docker` tests use the runner image if it's built
-cd backend && uv run ruff check .
+cd backend && uv run pytest && uv run ruff check .    # no API calls; the docker-marked tests use the runner image if it's built
 cd frontend && npm run lint && npm run build
 ```
 
-## Layout
+The frontend only displays. The backend makes every decision and streams events over a WebSocket. The UI is drawn from those events alone, which is why Replay and the demo work without any model calls.
 
 ```
-backend/app/config.py      APP_NAME + settings from .env
-backend/app/gateway/       OpenRouter client (OpenAI SDK)
-backend/app/db/            SQLite tables: runs, seats, messages, votes, tasks, artifacts, events
-backend/app/orchestrator/  missions, building (workstreams, plan, parallel build), debate rounds, voting, checkpoints, budget, reply and file-block formats, file sandbox
-backend/app/events/        ordered event log + in-process bus for the WebSocket
-backend/app/runs.py        starts runs in the background; pause, stop, budget answers
-backend/app/auth.py        accounts, invites, login sessions, who can see and change a run
-backend/app/demo.py        imports demo/ as public runs; exports a run as a demo
-backend/app/cli.py         terminal entry point (debate, create-user, export-demo)
-backend/scripts/           fake_openrouter.py practice server
-frontend/                  Next.js app: convene, login, invites, Chamber, Replay
-frontend/src/lib/chamber/  event reducer, layout geometry, WebSocket and Replay hooks
-frontend/src/components/   Chamber (seats, core, PixiJS effects, transcript) and the convene form
-config/seats.yaml          the 13 seats (check model IDs at openrouter.ai/models)
-demo/                      recorded demo runs, played with no API calls
-deploy/Caddyfile           HTTPS and routing for docker-compose.yml
-projects/                  one folder per run (git-ignored)
+backend/app/
+  orchestrator/    missions, debate rounds, voting, building, integration, budget, sandbox
+  gateway/         OpenRouter (OpenAI SDK) and the image providers
+  events/          ordered event log + WebSocket bus
+  db/              SQLite tables (SQLModel)
+  auth.py          accounts, invites, sessions, who can see a run
+  demo.py          demo import and export
+  cli.py           debate, create-user, export-demo
+backend/runner/    the Docker image that checks generated sites
+backend/scripts/   fake_openrouter.py, the practice council
+frontend/src/
+  app/             convene, login, invite, chamber, replay
+  components/      the Chamber: seats, core, PixiJS effects, transcript, Board, Vault
+  lib/chamber/     event reducer, layout geometry, live and Replay hooks
+config/seats.yaml  the 13 seats: name, provider, model ID, colour
+demo/              recorded demo runs
+deploy/Caddyfile   HTTPS and routing for docker-compose.yml
+projects/          one folder per run (git-ignored)
 ```
+
+Every setting is documented in [`.env.example`](.env.example). The full design, including the reply format, data model and event types, is in [`PANTHEON_SPEC.md`](PANTHEON_SPEC.md).
+
+## Status
+
+All seven milestones in the spec are built: the skeleton, the debate engine, the live Chamber, missions and checkpoints, roles and building, images and integration, and Replay, the demo and deployment. "Pantheon" is a placeholder name. It's set in one place, `APP_NAME` in `backend/app/config.py`, which `frontend/src/lib/app.ts` mirrors.
