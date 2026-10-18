@@ -100,6 +100,8 @@ cd backend && uv sync && uv run uvicorn app.main:app --reload --port 8000
 cd frontend && npm install && npm run dev
 ```
 
+**On Windows, the easy way:** after installing the tools, double-click **`start.bat`** in the `pantheon` folder. The first time, it opens Notepad so you can fill in `.env`. It then installs everything, starts the backend and the frontend in their own windows, and opens the browser. It keeps checking GitHub every minute and applies updates by itself: code changes reload on their own, and the servers restart when new packages arrive. To stop, close the three windows. (The script is `scripts/start.ps1`; it also runs in PowerShell 7 on a Mac.)
+
 Open **http://localhost:3000** and log in with your `ADMIN_EMAIL` account, which is created on first start. Pick a mission (or leave it on Auto), write a goal, choose the seats and a budget cap, and press **Convene the council**.
 
 > [!TIP]
