@@ -36,7 +36,7 @@ pantheon/
   demo/               # recorded demo runs, imported as public read-only runs
   deploy/Caddyfile    # HTTPS + routing for docker-compose.yml (see docs/DEPLOY.md)
   projects/           # one folder per run (git-ignored)
-  config/seats.yaml   # 13 seats: letter, name, provider, model ID, colour, voice ID, sensitive_ok (no fixed roles)
+  config/seats.yaml   # 13 seats: letter, name, provider, model ID, colour, logo, voice ID, sensitive_ok (no fixed roles)
   PANTHEON_SPEC.md
   CLAUDE.md
   .env.example

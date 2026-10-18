@@ -339,7 +339,7 @@ class MissionRun(CreateMixin, IntegrateMixin, BuildMixin, Debate):
             "phase_changed", phase="convene", round=None, goal=self.goal,
             max_rounds=self.max_rounds, budget_usd=self.budget.cap_usd,
             seats=[{"letter": s.letter, "name": s.name, "colour": s.colour, "role": None,
-                    "model_id": s.model_id} for s in self.seats],
+                    "logo": s.logo, "model_id": s.model_id} for s in self.seats],
             mission=None if self.requested == "auto" else self.requested,
             phases=MISSIONS[self.requested].rail() if self.requested != "auto" else None,
         )

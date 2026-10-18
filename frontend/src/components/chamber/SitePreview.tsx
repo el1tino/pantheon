@@ -22,7 +22,7 @@ export default function SitePreview({ version, path = "index.html", className = 
       src={siteUrl(siteKey, path, version)}
       sandbox="allow-scripts allow-forms"
       referrerPolicy="no-referrer"
-      className={`h-full w-full rounded-lg border border-white/10 bg-white ${className}`}
+      className={`h-full w-full rounded-xl border border-white/10 bg-white ${className}`}
     />
   );
 }

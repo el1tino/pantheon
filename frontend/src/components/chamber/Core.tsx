@@ -75,7 +75,7 @@ export default function Core({ x, y, width, plus, minus, flash, decision, onOpen
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
-            className="mx-auto mt-5 w-max max-w-[min(560px,80vw)] rounded-full border bg-black/60 px-4 py-1.5 text-center text-[13px] text-white/85 backdrop-blur"
+            className="mx-auto mt-5 w-max max-w-[min(560px,80vw)] glass-chip rounded-full px-4 py-1.5 text-center text-[13px] text-white/85"
             style={{ borderColor: `${decision.colour}66`, boxShadow: `0 0 30px ${decision.colour}22` }}
           >
             <span className="mr-2 text-[10px] uppercase tracking-[0.2em]" style={{ color: decision.colour }}>

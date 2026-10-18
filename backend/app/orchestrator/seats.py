@@ -14,6 +14,7 @@ class SeatConfig(BaseModel):
     provider: str
     model_id: str
     colour: str
+    logo: str = ""  # file name in frontend/public/logos/, without .svg
     voice_id: str = ""
     sensitive_ok: bool = False
 

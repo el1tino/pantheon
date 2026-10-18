@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { APP_NAME } from "@/lib/app";
 import DemoList from "@/components/DemoList";
+import SeatLogo from "@/components/SeatLogo";
+import TrademarkNote from "@/components/TrademarkNote";
 import {
   HttpError, MissionOption, RunSummary, SeatOption, User, createInvite, createRun, goToLogin, listMissions, listRuns,
   listSeats, logout, me, publicConfig,
@@ -56,7 +58,7 @@ function AccountBar({ user }: { user: User }) {
         </button>
       </div>
       {link && (
-        <div className="flex w-full max-w-md items-center gap-2 rounded-lg border border-amber-200/20 bg-amber-200/[0.04] p-2">
+        <div className="flex w-full max-w-md items-center gap-2 glass-chip rounded-xl !border-amber-200/20 p-2">
           <input readOnly value={link} onFocus={(e) => e.target.select()} className="min-w-0 flex-1 bg-transparent font-mono text-[11px] text-white/75 outline-none" />
           <button
             onClick={async () => {
@@ -172,7 +174,7 @@ function Convene({ user }: { user: User }) {
         </motion.h1>
         <p className="mt-3 text-center text-2xl font-medium tracking-tight text-white md:text-3xl">Convene the council</p>
 
-        <form onSubmit={submit} className="mt-10 space-y-8">
+        <form onSubmit={submit} className="glass mt-10 space-y-8 rounded-[28px] p-5 md:p-8">
           <div>
             <span className="mb-2 block text-[11px] uppercase tracking-[0.2em] text-white/40">Mission</span>
             <div className="flex flex-wrap gap-2">
@@ -214,7 +216,7 @@ function Convene({ user }: { user: User }) {
               onChange={(e) => setGoal(e.target.value)}
               placeholder={EXAMPLES[mission] ?? EXAMPLES.auto}
               rows={3}
-              className="w-full resize-y rounded-xl border border-white/10 bg-white/[0.03] p-4 text-[15px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/25 focus:border-white/30"
+              className="w-full resize-y glass-well rounded-2xl p-4 text-[15px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/25"
             />
           </label>
 
@@ -232,18 +234,17 @@ function Convene({ user }: { user: User }) {
                     key={s.letter}
                     onClick={() => toggle(s.letter)}
                     aria-pressed={on}
-                    className="group flex items-center gap-3 rounded-lg border px-3 py-2 text-left transition-all duration-300"
-                    style={{
-                      borderColor: on ? `${s.colour}66` : "rgba(255,255,255,0.07)",
-                      background: on ? `${s.colour}10` : "transparent",
-                      boxShadow: on ? `0 0 22px ${s.colour}1a` : "none",
-                    }}
+                    className={`group flex items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition-all duration-300 ${on ? "glass" : "border-white/[0.06]"}`}
+                    style={on ? { borderColor: `${s.colour}55`, boxShadow: `inset 0 1px 0 rgba(255,255,255,0.08), 0 0 24px -6px ${s.colour}55` } : undefined}
                   >
                     <span
-                      className="text-2xl font-semibold leading-none transition-opacity"
-                      style={{ color: s.colour, opacity: on ? 1 : 0.35, textShadow: on ? `0 0 14px ${s.colour}88` : "none" }}
+                      className="seat-disc relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-opacity"
+                      style={{ opacity: on ? 1 : 0.45, borderColor: on ? `${s.colour}55` : undefined }}
                     >
-                      {s.letter}
+                      <SeatLogo seat={s} size={18} />
+                      <span className="absolute -bottom-1 -right-1 font-mono text-[9px] font-medium" style={{ color: s.colour }}>
+                        {s.letter}
+                      </span>
                     </span>
                     <span className="min-w-0">
                       <span className={`block text-[13px] ${on ? "text-white/90" : "text-white/45"}`}>{s.name}</span>
@@ -261,14 +262,14 @@ function Convene({ user }: { user: User }) {
               <select
                 value={rounds}
                 onChange={(e) => setRounds(Number(e.target.value))}
-                className="h-10 rounded-lg border border-white/10 bg-[#0d0d11] px-3 text-[14px] text-white outline-none"
+                className="h-10 rounded-xl border border-white/10 bg-[#17181e] px-3 text-[14px] text-white outline-none"
               >
                 {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
             </label>
             <label className="block">
               <span className="mb-2 block text-[11px] uppercase tracking-[0.2em] text-white/40">Budget cap</span>
-              <span className="flex h-10 items-center rounded-lg border border-white/10 bg-white/[0.03] px-3">
+              <span className="glass-well flex h-10 items-center rounded-xl px-3">
                 <span className="text-white/40">$</span>
                 <input
                   type="number" min="0.01" step="any" value={budget}
@@ -283,12 +284,12 @@ function Convene({ user }: { user: User }) {
             </label>
           </div>
 
-          {error && <p className="rounded-md border border-red-400/30 bg-red-950/40 px-3 py-2 text-[13px] text-red-200">{error}</p>}
+          {error && <p className="rounded-xl border border-red-400/30 bg-red-950/40 px-3 py-2 text-[13px] text-red-200">{error}</p>}
 
           <button
             type="submit"
             disabled={busy || picked.length === 0 || goal.trim().length < 3 || !(Number(budget) > 0)}
-            className="w-full rounded-xl bg-amber-300 py-3 text-[15px] font-medium text-black shadow-[0_0_40px_rgba(252,211,77,0.2)] transition-opacity disabled:opacity-40"
+            className="w-full accent-button rounded-full py-3 text-[15px] font-medium transition-opacity disabled:opacity-40"
           >
             {busy ? "Convening…" : "Convene the council"}
           </button>
@@ -299,7 +300,7 @@ function Convene({ user }: { user: User }) {
         {runs.length > 0 && (
           <section className="mt-14">
             <h2 className="mb-3 text-[11px] uppercase tracking-[0.2em] text-white/40">Recent runs</h2>
-            <ul className="divide-y divide-white/[0.06] rounded-xl border border-white/[0.07]">
+            <ul className="glass divide-y divide-white/[0.06] overflow-hidden rounded-2xl">
               {runs.map((r) => (
                 <li key={r.id}>
                   <Link href={`/chamber/${r.id}`} className="flex items-center gap-4 px-4 py-3 hover:bg-white/[0.03]">
@@ -315,6 +316,7 @@ function Convene({ user }: { user: User }) {
         <p className="mt-10 text-center text-[11px] text-white/25">
           <Link href="/test" className="hover:text-white/50">Single model test call</Link>
         </p>
+        <TrademarkNote className="mt-3" />
       </div>
     </main>
   );

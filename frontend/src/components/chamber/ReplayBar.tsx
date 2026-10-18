@@ -40,7 +40,7 @@ export default function ReplayBar({ replay, clean, onClean }: { replay: Replay; 
 
   return (
     <footer
-      className={`relative z-30 flex h-16 shrink-0 items-center gap-3 border-t border-white/[0.06] bg-black/30 px-4 backdrop-blur transition-opacity duration-500 md:px-6 ${
+      className={`glass relative z-30 mx-2 mb-2 flex h-16 shrink-0 items-center gap-3 rounded-2xl px-3 transition-opacity duration-500 md:mx-3 md:mb-3 md:px-4 ${
         clean ? "opacity-0 hover:opacity-100 focus-within:opacity-100" : ""
       }`}
     >
@@ -48,7 +48,7 @@ export default function ReplayBar({ replay, clean, onClean }: { replay: Replay; 
         onClick={toggle}
         disabled={!loaded}
         aria-label={playing ? "Pause" : "Play"}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 text-white/85 hover:border-white/35 disabled:opacity-30"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 text-white/85 disabled:opacity-30"
       >
         {playing ? (
           <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><rect x="1" y="1" width="3.5" height="10" rx="1" /><rect x="7.5" y="1" width="3.5" height="10" rx="1" /></svg>

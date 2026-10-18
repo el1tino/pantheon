@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import Markdown from "@/components/Markdown";
+import SeatLogo from "@/components/SeatLogo";
 import { SeatView } from "@/lib/chamber/reducer";
 import { CLIENT, MODERATOR, Message, STANCE_COLOUR, STANCE_LABEL } from "@/lib/chamber/types";
 
@@ -57,8 +58,10 @@ export default function Transcript({ seats, messages, live, thinking, tally, sco
     const s = seatOf(letter);
     return (
       <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <span className="text-[12.5px] font-medium" style={{ color: s?.colour }}>
-          {letter} · {s?.name}
+        <span className="flex items-center gap-1.5 text-[12.5px] font-medium" style={{ color: s?.colour }}>
+          {s?.logo && <SeatLogo seat={s} size={14} />}
+          {s?.name ?? letter}
+          <span className="font-mono text-[10px] font-normal text-white/30">{letter}</span>
         </span>
         {s?.role && (
           <span className="rounded-full border border-white/10 px-1.5 text-[9.5px] uppercase tracking-[0.1em] text-white/45">
@@ -104,7 +107,7 @@ export default function Transcript({ seats, messages, live, thinking, tally, sco
           const big = m.round === "summary" || m.round === "verdict";
           return big ? (
             <motion.div key={m.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-              className="rounded-lg border border-white/15 bg-white/[0.04] p-3 text-[12.5px] leading-relaxed text-white/75">
+              className="glass-well rounded-xl p-3 text-[12.5px] leading-relaxed text-white/75">
               <div className="mb-2 text-[10px] uppercase tracking-[0.25em] text-white/45">
                 {m.round === "verdict" ? "The result" : "Moderator summary"}
               </div>
@@ -227,7 +230,7 @@ export default function Transcript({ seats, messages, live, thinking, tally, sco
         );
       })}
       {Object.entries(live).map(([seat, text]) => (
-        <div key={`live-${seat}`} className="relative rounded-md bg-white/[0.04] py-2 pl-3.5 pr-3">
+        <div key={`live-${seat}`} className="relative rounded-xl bg-white/[0.04] py-2 pl-3.5 pr-3">
           <span
             className="absolute inset-y-1.5 left-0 w-[3px] animate-pulse rounded-full"
             style={{ background: seat === MODERATOR ? "#fff" : seatOf(seat)?.colour }}

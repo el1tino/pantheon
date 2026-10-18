@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { SeatSpot } from "@/lib/chamber/geometry";
 import { SeatView } from "@/lib/chamber/reducer";
+import SeatLogo from "@/components/SeatLogo";
 
 type Props = { seat: SeatView; spot: SeatSpot; compact: boolean; reducedMotion: boolean };
 
@@ -18,10 +19,10 @@ export default function Seat({ seat, spot, compact, reducedMotion }: Props) {
   const letterAnim = absent
     ? { opacity: 0.35, scale: 1 }
     : speaking
-      ? { opacity: 1, scale: 1.1 }
+      ? { opacity: 1, scale: 1.08 }
       : thinking
-        ? reducedMotion ? { opacity: 0.9, scale: 1 } : { opacity: [0.7, 1, 0.7], scale: [1, 1.025, 1] }
-        : reducedMotion ? { opacity: 0.62, scale: 1 } : { opacity: [0.5, 0.72, 0.5], scale: 1 };
+        ? reducedMotion ? { opacity: 0.95, scale: 1 } : { opacity: [0.8, 1, 0.8], scale: [1, 1.03, 1] }
+        : reducedMotion ? { opacity: 0.8, scale: 1 } : { opacity: [0.72, 0.88, 0.72], scale: 1 };
   const letterTransition =
     thinking && !reducedMotion
       ? { duration: 1.3, repeat: Infinity, ease: "easeInOut" as const }
@@ -31,8 +32,9 @@ export default function Seat({ seat, spot, compact, reducedMotion }: Props) {
 
   return (
     <div
-      className="absolute z-10 flex -translate-x-1/2 flex-col items-center"
-      style={{ left: spot.x, top: spot.y - size * 0.62 }}
+      className="absolute flex -translate-x-1/2 flex-col items-center"
+      // a speaker's caption bubble sits above its neighbours' discs
+      style={{ left: spot.x, top: spot.y - size * 0.62, zIndex: speaking ? 20 : 10 }}
     >
       {/* caption bubble: streams the first line of what the seat is saying */}
       <AnimatePresence>
@@ -43,8 +45,8 @@ export default function Seat({ seat, spot, compact, reducedMotion }: Props) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.3 }}
-            className={`absolute bottom-full z-30 mb-3 w-max max-w-[min(280px,60vw)] rounded-lg border bg-black/75 px-3 py-1.5 text-left text-[12px] leading-snug text-white/90 shadow-lg backdrop-blur ${spot.align === "start" ? "left-[-12px]" : spot.align === "end" ? "right-[-12px]" : ""}`}
-            style={{ borderColor: `${colour}55`, boxShadow: `0 0 24px ${colour}22` }}
+            className={`glass-chip absolute bottom-full z-30 mb-3 w-max max-w-[min(280px,60vw)] rounded-xl px-3 py-1.5 text-left text-[12px] leading-snug text-white/90 ${spot.align === "start" ? "left-[-12px]" : spot.align === "end" ? "right-[-12px]" : ""}`}
+            style={{ borderColor: `${colour}44` }}
           >
             <span className="line-clamp-2">{seat.caption}</span>
           </motion.div>
@@ -58,30 +60,40 @@ export default function Seat({ seat, spot, compact, reducedMotion }: Props) {
             <motion.span
               key="ring"
               className="pointer-events-none absolute rounded-full border"
-              style={{ width: size * 1.1, height: size * 1.1, borderColor: colour }}
+              style={{ width: size * 1.1, height: size * 1.1, left: "50%", top: "50%", marginLeft: -size * 0.55, marginTop: -size * 0.55, borderColor: colour }}
               initial={{ scale: 0.6, opacity: 0.7 }}
               animate={{ scale: 2.1, opacity: 0 }}
               transition={{ duration: 1.3, ease: "easeOut" }}
             />
           )}
         </AnimatePresence>
-        <motion.span
-          className="select-none font-semibold leading-none"
+        {/* the seat: its provider's logo on a glass disc that glows in the seat's colour */}
+        <motion.div
+          className="seat-disc relative flex items-center justify-center rounded-full"
           style={{
-            fontSize: size,
-            color: colour,
-            textShadow: absent ? "none" : `0 0 ${speaking ? 36 : 18}px ${colour}${speaking ? "aa" : "55"}`,
-            letterSpacing: "-0.02em",
+            width: size * 1.08,
+            height: size * 1.08,
+            borderColor: absent ? "rgba(255,255,255,0.08)" : `${colour}${speaking ? "aa" : "44"}`,
+            boxShadow: absent
+              ? "none"
+              : `0 0 ${speaking ? 40 : 22}px -4px ${colour}${speaking ? "99" : "44"}, inset 0 1px 0 rgba(255,255,255,0.14)`,
           }}
           animate={letterAnim}
           transition={letterTransition}
         >
-          {seat.letter}
-        </motion.span>
+          <SeatLogo seat={seat} size={size * 0.5} dim={absent} />
+          <span
+            className="glass-chip absolute -bottom-1 -right-1 flex items-center justify-center rounded-full font-mono font-medium leading-none"
+            style={{ width: Math.max(16, size * 0.3), height: Math.max(16, size * 0.3), fontSize: Math.max(9, size * 0.15), color: absent ? GREY : colour }}
+            aria-hidden
+          >
+            {seat.letter}
+          </span>
+        </motion.div>
       </div>
 
       {/* pedestal */}
-      <div className="relative mt-1 overflow-hidden" style={{ width: size * 1.35, height: 3 }}>
+      <div className="relative mt-2 overflow-hidden rounded-full" style={{ width: size * 0.9, height: 2 }}>
         {absent ? (
           <div className="h-0 w-full border-t-2 border-dashed" style={{ borderColor: GREY }} />
         ) : (

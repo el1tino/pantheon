@@ -42,7 +42,7 @@ export default function PlanCard({ checkpoint, seats, onApprove }: Props) {
     <select
       value={assign[tid][field]}
       onChange={(e) => setAssign((a) => ({ ...a, [tid]: { ...a[tid], [field]: e.target.value } }))}
-      className="rounded-md border border-white/15 bg-[#121218] px-1.5 py-1 text-[12px] outline-none"
+      className="rounded-lg border border-white/10 bg-[#17181e] px-1.5 py-1 text-[12px] outline-none focus:border-white/25"
       style={{ color: seat(assign[tid][field])?.colour }}
     >
       {choices.map((c) => (
@@ -52,12 +52,12 @@ export default function PlanCard({ checkpoint, seats, onApprove }: Props) {
   );
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-[2px]">
+    <div className="glass-scrim absolute inset-0 z-50 flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, y: 28, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="flex max-h-full w-[min(860px,96vw)] flex-col rounded-2xl border border-amber-200/20 bg-[#0d0c10]/95 shadow-2xl"
+        className="glass-thick flex max-h-full w-[min(860px,96vw)] flex-col rounded-[22px] !border-amber-200/15"
       >
         <div className="border-b border-white/[0.06] px-6 pb-4 pt-5">
           <div className="mb-1 text-[10px] uppercase tracking-[0.3em] text-amber-200/70">Checkpoint · approve the plan</div>
@@ -110,7 +110,7 @@ export default function PlanCard({ checkpoint, seats, onApprove }: Props) {
           <button
             disabled={busy || clash.length > 0}
             onClick={approve}
-            className="ml-auto rounded-md bg-amber-300 px-4 py-2 text-[13px] font-medium text-black disabled:opacity-40"
+            className="ml-auto accent-button rounded-full px-4 py-2 text-[13px] font-medium disabled:opacity-40"
           >
             Approve and build
           </button>

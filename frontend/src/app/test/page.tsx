@@ -39,12 +39,12 @@ export default function TestPage() {
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           rows={3}
-          className="w-full resize-y rounded-md border border-white/10 bg-white/[0.03] p-3 outline-none focus:border-white/30"
+          className="glass-well w-full resize-y rounded-xl p-3 outline-none"
         />
         <button
           type="submit"
           disabled={loading || !prompt.trim()}
-          className="self-start rounded-md bg-amber-400/90 px-4 py-2 text-sm font-medium text-black transition-opacity disabled:opacity-40"
+          className="self-start accent-button rounded-full px-4 py-2 text-sm font-medium transition-opacity disabled:opacity-40"
         >
           {loading ? "Waiting for the model…" : "Send"}
         </button>
@@ -57,7 +57,7 @@ export default function TestPage() {
       )}
 
       {result && (
-        <section className="flex flex-col gap-3 rounded-md border border-white/10 bg-white/[0.03] p-4">
+        <section className="glass flex flex-col gap-3 rounded-2xl p-4">
           <p className="whitespace-pre-wrap leading-relaxed">{result.reply}</p>
           <dl className="flex flex-wrap gap-x-6 gap-y-1 font-mono text-xs text-muted">
             <div>model <span className="text-foreground">{result.model}</span></div>

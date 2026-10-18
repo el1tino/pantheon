@@ -186,7 +186,7 @@ async def test_call(body: TestCallIn, user: User = Depends(current_user), sessio
 def list_seats() -> list[dict]:
     return [
         {"letter": s.letter, "name": s.name, "provider": s.provider, "colour": s.colour,
-         "model_id": s.model_id}
+         "logo": s.logo, "model_id": s.model_id}
         for s in load_seats()
     ]
 

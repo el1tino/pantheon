@@ -19,7 +19,7 @@ export default function DemoList({ className = "" }: { className?: string }) {
           <li key={d.id}>
             <Link
               href={`/replay/${d.id}`}
-              className="group flex items-center gap-3 rounded-xl border border-amber-200/15 bg-amber-200/[0.03] px-4 py-3 transition-colors hover:border-amber-200/40"
+              className="group flex items-center gap-3 glass rounded-2xl !border-amber-200/15 px-4 py-3 transition-colors hover:!border-amber-200/40"
             >
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-amber-200/30 text-amber-100/90">
                 <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor"><path d="M2.5 1.2v9.6c0 .5.5.8.9.5l7.4-4.8c.4-.3.4-.8 0-1L3.4.7c-.4-.3-.9 0-.9.5z" /></svg>

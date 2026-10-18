@@ -205,7 +205,7 @@ class Debate:
             max_rounds=self.max_rounds, budget_usd=self.budget.cap_usd,
             seats=[
                 {"letter": s.letter, "name": s.name, "colour": s.colour, "role": None,
-                 "model_id": s.model_id}
+                 "logo": s.logo, "model_id": s.model_id}
                 for s in self.seats
             ],
         )
