@@ -378,6 +378,11 @@ export default function EffectsLayer({
         add(benchFlashFx(lay.seats, "#fde68a", reduced));
         add(rippleFx({ x: lay.core.x, y: lay.core.y }, "#fde68a", Math.max(lay.width, lay.height) * 0.6, reduced));
         hit(1, 0);
+      } else if (ev.type === "artifact_created" && p.kind === "check") {
+        // The site was run in Docker: the core rings out green when it passes, red when it fails.
+        const colour = p.status === "passed" ? GREEN : p.status === "failed" ? RED : "#fcd34d";
+        add(rippleFx({ x: lay.core.x, y: lay.core.y }, colour, Math.max(lay.width, lay.height) * 0.55, reduced));
+        hit(p.status === "passed" ? 1 : 0, p.status === "failed" ? 1 : 0);
       } else if (ev.type === "message_routed" && p.from !== MODERATOR) {
         const from = spot(p.from);
         if (!from) return;

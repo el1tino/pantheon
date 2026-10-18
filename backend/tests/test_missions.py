@@ -216,7 +216,7 @@ def _wait_for(ws, pred, seen):
 def test_api_checkpoints_messages_and_download(client):
     assert {m["key"] for m in client.get("/api/missions").json()} >= {"ask", "write", "launch"}
     bad = client.post("/api/runs", json={"goal": "Make a logo", "seats": ["A", "B"], "budget_usd": 1,
-                                         "mission": "create"})
+                                         "mission": "nope"})
     assert bad.status_code == 422
     run_id = client.post("/api/runs", json={"goal": "Write a birthday message for my dad", "seats": ["A", "B", "C"],
                                             "budget_usd": 1, "mission": "write"}).json()["run_id"]

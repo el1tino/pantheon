@@ -86,7 +86,7 @@ class Script:
         self.goal = m.group(1) if m else ""
         m = re.search(r"seat ([A-M]) on the", system)
         self.letter = m.group(1) if m else "?"
-        step = re.search(r"STEP: ([A-Z ]+?)(?: ([pt]\d+))?\.", user)
+        step = re.search(r"STEP: ([A-Z ]+?)(?: ([pti]\d+))?\.", user)
         self.step = step.group(1).strip() if step else ""
         self.part = step.group(2) if step else None
         self.rng = _rng(self.goal, self.letter, self.step, self.part)
@@ -106,6 +106,7 @@ class Script:
             "ROLE VOTE": self.role_vote, "WRITE PART": self.write_part, "CRITIQUE": self.critique,
             "REVISE PART": self.revise_part, "BUILD TASK": self.build_task,
             "REVISE TASK": self.revise_task, "REVIEW TASK": self.review_task, "ANSWER": self.answer,
+            "IMAGE PROMPT": self.image_prompt, "IMAGE REVIEW": self.image_review,
         }.get(self.step)
         if handler:
             return handler()
@@ -231,13 +232,29 @@ class Script:
             ]
         return json.dumps({"tasks": tasks})
 
-    def _files_reply(self, stance: str, content: str, revised: bool, reply_to: str | None = None) -> str:
+    def _files_reply(self, stance: str, content: str, revised: bool, reply_to: str | None = None,
+                     extra: dict | None = None) -> str:
         listed = (re.search(r"Write: ([^\n]+?)\.\n", self.user)
                   or re.search(r'Revise task t\d+ "[^"]*" \(([^)]*)\)', self.user))
         paths = [p.strip() for p in (listed.group(1) if listed else "").split(",") if "/" in p]
         title, summary = _idea_from(self.user)
-        head = self._json(stance, reply_to, content)
-        blocks = "".join(f"=== FILE: {p} ===\n{site_file(p, title, summary, revised)}\n=== END FILE ===\n" for p in paths)
+        # The page gets a logo: requested by whoever writes index.html, or already made.
+        writes_index = "site/index.html" in paths
+        logo_exists = "site/logo." in self.user.split("Images that already exist:")[-1][:400]
+        asks_logo = writes_index and not logo_exists
+        # A first build of the script sometimes ships a bug, so the Integrate phase has work to do.
+        fixing = "failed" in self.user and "Docker" in self.user
+        buggy = not fixing and _rng(self.goal, "bug").random() < 0.5  # reviews miss it; the check catches it
+        proposal = dict(extra or {})
+        if asks_logo:
+            proposal["images"] = [{"path": "site/logo.svg", "kind": "logo", "consultant": "recraft",
+                                   "prompt": f'A minimal geometric logo mark for "{title}": rounded square, '
+                                             "two-tone gradient, bold initials, works at 32px."}]
+        head = json.dumps({"stance": stance, "reply_to": reply_to, "content": content,
+                           "proposal": proposal or None}, indent=1)
+        blocks = "".join(
+            f"=== FILE: {p} ===\n{site_file(p, title, summary, revised or fixing, logo=writes_index, buggy=buggy)}"
+            "\n=== END FILE ===\n" for p in paths)
         return head + "\n" + blocks
 
     def build_task(self) -> str:
@@ -251,8 +268,28 @@ class Script:
 
     def revise_task(self) -> str:
         m = re.search(r'reply_to "(m\d+)"', self.user)
-        return self._files_reply("report", "Applied the review: tightened the copy and fixed the details.",
-                                 revised=True, reply_to=m.group(1) if m else None)
+        if "failed" in self.user and "Docker" in self.user:
+            # Claims success with no evidence: the fact-checking guardrail marks it unverified.
+            content = "Fixed the errors from the check; it works now."
+        else:
+            content = "Applied the review: tightened the copy and fixed the details."
+        return self._files_reply("report", content, revised=True, reply_to=m.group(1) if m else None)
+
+    def image_prompt(self) -> str:
+        title, summary = _idea_from(self.user)
+        m = re.search(r'designing (i\d+) "([^"]+)" \((logo|image)\)', self.user)
+        what, kind = (m.group(2), m.group(3)) if m else ("Image", "image")
+        revised = "Revise it:" in self.user
+        prompt = (f'{"A bolder, simpler" if revised else "A clean"} {what.lower()} for "{title}": {summary} '
+                  f'{"Flat vector mark, two colours, no text." if kind == "logo" else "Soft gradients, generous space, the name set large."}')
+        consultant = "recraft" if kind == "logo" else ("flux" if self.rng.random() < 0.5 else "openai")
+        return self._json("report", None, f"{'Simplified' if revised else 'Drafted'} the brief for the {what.lower()}.",
+                          proposal={"prompt": prompt, "consultant": consultant})
+
+    def image_review(self) -> str:
+        if self.rng.random() < 0.5:
+            return self._json("challenge", None, "Make it simpler: fewer elements, and keep the brand colours.")
+        return self._json("agree", None, "The brief fits the concept and will read well at small sizes.")
 
     def review_task(self) -> str:
         final = "final review round" in self.user
@@ -354,8 +391,20 @@ class Script:
             tied = re.findall(r"^- ([A-M]) \(", self.user, re.M)
             return json.dumps({"winner": tied[0] if tied else "A", "reason": "The most concrete pitch."})
         if self.step == "ROUTE CHANGES":
-            site = re.findall(r"^- (t\d+): [^(]*\(([^)]*site/[^)]*)\)", self.user, re.M)
+            site = re.findall(r"^- ([ti]\d+): [^(]*\(([^)]*site/[^)]*)\)", self.user, re.M)
             return json.dumps({"tasks": [tid for tid, _ in site][:2]})
+        if self.step == "SHOTLIST":
+            return json.dumps({"images": [
+                {"title": "Logo", "kind": "logo", "brief": "A bold, simple mark."},
+                {"title": "Hero banner", "kind": "image", "brief": "A wide banner in the brand colours."},
+                {"title": "Social card", "kind": "image", "brief": "A square image for posts."},
+            ]})
+        if self.step == "CONSISTENCY":
+            if "docs/pitch-deck.md" in self.user:
+                return json.dumps({"issues": [{"file": "docs/pitch-deck.md",
+                                               "problem": "The pitch deck uses a different product name than the site.",
+                                               "fix": "Use the name from the site's title everywhere."}]})
+            return json.dumps({"issues": []})
         if "vote is tied" in self.user:
             first = re.findall(r"- (m\d+) by", self.user)[0]
             return json.dumps({"winner": first, "reason": "It drew the fewest unanswered objections."})
@@ -407,7 +456,8 @@ def _idea_from(user: str) -> tuple[str, str]:
     return (m.group(1).strip(), m.group(2).strip()) if m else ("Our project", "A small, friendly website.")
 
 
-def site_file(path: str, title: str, summary: str, revised: bool = False) -> str:
+def site_file(path: str, title: str, summary: str, revised: bool = False, logo: bool = False,
+              buggy: bool = False) -> str:
     """A small but real static site, so the preview shows something that works."""
     features = [("Made for you", "Built around one clear job, done well."),
                 ("Fast to start", "No setup. Open it and go."),
@@ -426,7 +476,7 @@ def site_file(path: str, title: str, summary: str, revised: bool = False) -> str
   <script src="script.js" defer></script>
 </head>
 <body>
-  <header class="nav"><span class="brand">{title}</span><a href="#join" class="nav-cta">Get early access</a></header>
+  <header class="nav"><span class="brand">{'<img src="logo.svg" alt="" class="logo">' if logo else ""}{title}</span><a href="#join" class="nav-cta">Get early access</a></header>
   <main>
     <section class="hero">
       <h1>{title}</h1>
@@ -451,7 +501,8 @@ def site_file(path: str, title: str, summary: str, revised: bool = False) -> str
 * {{ box-sizing: border-box; }}
 body {{ margin: 0; font-family: system-ui, sans-serif; background: radial-gradient(circle at 50% 0%, #23244a, var(--bg) 60%); color: var(--text); }}
 .nav {{ display: flex; justify-content: space-between; align-items: center; padding: 20px 6vw; }}
-.brand {{ font-weight: 700; letter-spacing: .04em; }}
+.brand {{ font-weight: 700; letter-spacing: .04em; display: flex; align-items: center; gap: 10px; }}
+.logo {{ width: 36px; height: 36px; }}
 .nav-cta {{ color: var(--text); opacity: .8; text-decoration: none; }}
 .hero {{ text-align: center; padding: 12vh 6vw 8vh; }}
 .hero h1 {{ font-size: clamp(2.4rem, 6vw, 4.4rem); margin: 0 0 16px; }}
@@ -488,7 +539,8 @@ document.getElementById("signup").addEventListener("submit", (event) => {
 const observer = new IntersectionObserver((entries) => {
   entries.forEach((e) => { if (e.isIntersecting) e.target.classList.add("shown"); });
 }, { threshold: 0.15 });
-document.querySelectorAll(".reveal").forEach((el) => observer.observe(el));"""
+document.querySelectorAll(".reveal").forEach((el) => observer.observe(el));""" + (
+            "\ninitCarousel(); // the carousel helper was never written" if buggy else "")
     name = path.rsplit("/", 1)[-1].replace("-", " ").replace(".md", "").capitalize()
     body = (f"# {name}: {title}\n\n{summary}\n\n## Key points\n\n"
             "- Who it is for and the one job it does.\n- Why now, and why us.\n"

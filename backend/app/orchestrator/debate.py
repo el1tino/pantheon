@@ -13,6 +13,7 @@ import asyncio
 import contextvars
 import difflib
 import json
+import re
 import time
 from collections import Counter
 from collections.abc import Awaitable, Callable
@@ -49,6 +50,15 @@ CLIENT = "client"  # the user, speaking into the council chat
 TOKEN_FLUSH_S = 0.066  # batch streamed text into ~15 token events per second
 DIFF_FEED_MAX_LINES = 40
 
+
+# Claims of having done or checked something. Without evidence they are marked unverified.
+CLAIM = re.compile(
+    r"\b(tests?\s+(?:now\s+)?pass(?:ed|es)?|all\s+checks?\s+pass(?:ed)?|no\s+(?:more\s+)?errors"
+    r"|(?:it|this|everything|the\s+site|the\s+page)\s+(?:now\s+)?works|works\s+(?:now|correctly|fine|perfectly)"
+    r"|runs\s+(?:fine|correctly|cleanly|without\s+errors)|(?:is|are|been)\s+verified|checked\s+and\s+(?:it\s+)?works"
+    r"|fixed\s+(?:the|all)\s+(?:bugs?|errors?))\b",
+    re.I,
+)
 
 # Tokens and cost of the turn in progress (a turn may include one retry). A context variable,
 # so turns running in parallel (the build phase) each keep their own count.
@@ -100,6 +110,7 @@ class Entry:
     tokens: int = 0
     cost_usd: float = 0.0
     phase: str = ""
+    unverified: bool = False  # claims success without pointing at an artifact or a passing log
 
 
 Validator = Callable[[AgentReply], None]
@@ -436,6 +447,10 @@ class Debate:
         """
         max_tokens = max_tokens or self.reply_max_tokens
         estimate = self.budget.estimate(model, messages, max_tokens)
+        return await self._with_budget(estimate, lambda: self._send(who, model, messages, stream, max_tokens))
+
+    async def _with_budget(self, estimate: float, run: Callable[[], Awaitable[Any]]) -> Any:
+        """Reserve the estimate under the cap (pausing to ask if it won't fit), then run."""
         async with self._budget_lock:
             while True:
                 try:
@@ -445,9 +460,17 @@ class Debate:
                     await self._pause(exc)
             self.budget.reserved_usd += estimate
         try:
-            return await self._send(who, model, messages, stream, max_tokens)
+            return await run()
         finally:
             self.budget.reserved_usd -= estimate
+
+    def _record_cost(self, who: str, cost: float) -> None:
+        self.budget.record(cost)
+        self._set_run(spent_usd=self.budget.spent_usd)
+        self.log.emit(
+            "cost_updated", spent_usd=self.budget.spent_usd, cap_usd=self.budget.cap_usd,
+            ratio=self.budget.ratio, warning=self.budget.warning, last_call_usd=cost, seat=who,
+        )
 
     async def _send(
         self, who: str, model: str, messages: list[dict[str, str]], stream: str | None, max_tokens: int
@@ -472,13 +495,8 @@ class Debate:
         cost = self.budget.actual_cost(
             model, res.prompt_tokens, res.completion_tokens, res.cost_usd
         )
-        self.budget.record(cost)
         self._turn_add(res.prompt_tokens + res.completion_tokens, cost)
-        self._set_run(spent_usd=self.budget.spent_usd)
-        self.log.emit(
-            "cost_updated", spent_usd=self.budget.spent_usd, cap_usd=self.budget.cap_usd,
-            ratio=self.budget.ratio, warning=self.budget.warning, last_call_usd=cost, seat=who,
-        )
+        self._record_cost(who, cost)
         return res.content
 
     async def _pause(self, exc: BudgetExceeded) -> None:
@@ -560,6 +578,7 @@ class Debate:
             votes=[v.model_dump() for v in reply.votes] if reply.votes else None,
             tokens=self._turn_totals()[0], cost_usd=self._turn_totals()[1], phase=self.phase,
         )
+        entry.unverified = self._unverified(entry)
         self.entries.append(entry)
         self.by_id[entry.id] = entry
         self.session.add(
@@ -575,6 +594,27 @@ class Debate:
         if record:
             self._record_work(entry)
         return entry
+
+    def _unverified(self, entry: Entry) -> bool:
+        """The fact-checking guardrail: a claim of success must point at proof."""
+        if entry.seat in (MODERATOR, CLIENT) or not CLAIM.search(entry.content):
+            return False
+        evidence = (entry.proposal or {}).get("evidence") or []
+        return not any(self._evidence_ok(str(p)) for p in evidence if isinstance(p, str))
+
+    def _evidence_ok(self, path: str) -> bool:
+        try:
+            target = sandbox.safe_path(self.run_id, path)
+        except sandbox.SandboxError:
+            return False
+        if not target.is_file():
+            return False
+        if path.startswith("logs/") and path.endswith(".json"):
+            try:
+                return json.loads(target.read_text(encoding="utf-8")).get("status") == "passed"
+            except (json.JSONDecodeError, OSError):
+                return False
+        return True
 
     def _route(self, entry: Entry) -> None:
         """message_routed drives the Chamber's lines: one per vote target, else one per message."""

@@ -21,6 +21,8 @@ from app.orchestrator.protocol import AgentReply, ReplyError, parse_reply
 
 ALLOWED_ROOTS = ("site", "docs")
 ALLOWED_EXTENSIONS = {".html", ".css", ".js", ".md", ".json", ".svg", ".txt"}
+IMAGE_EXTENSIONS = {".svg", ".png", ".webp", ".jpg"}
+MAX_IMAGE_REQUESTS = 3
 MAX_FILE_BYTES = 120_000
 MAX_FILES_PER_REPLY = 8
 
@@ -55,6 +57,39 @@ def clean_path(raw: str) -> str:
     if any(part.startswith(".") for part in p.parts):
         raise ReplyError(f'"{raw}": hidden files are not allowed.')
     return str(p)
+
+
+def clean_image_path(raw: str) -> str:
+    """Images are requested from a consultant, not written by seats, and live under site/."""
+    path = raw.strip().strip("`'\"").replace("\\", "/")
+    p = PurePosixPath(path)
+    if p.is_absolute() or ".." in p.parts or len(p.parts) < 2 or p.parts[0] != "site":
+        raise ReplyError(f'Image path "{raw}" must be inside site/, like site/logo.svg.')
+    if p.suffix.lower() not in IMAGE_EXTENSIONS:
+        raise ReplyError(f'Image path "{raw}" must end in one of: {", ".join(sorted(IMAGE_EXTENSIONS))}.')
+    if any(part.startswith(".") for part in p.parts):
+        raise ReplyError(f'"{raw}": hidden files are not allowed.')
+    return str(p)
+
+
+def parse_image_requests(raw) -> list[dict]:
+    """Validate "proposal": {"images": [{"path", "prompt", "kind", "consultant"}]}."""
+    if raw is None:
+        return []
+    if not isinstance(raw, list) or len(raw) > MAX_IMAGE_REQUESTS:
+        raise ReplyError(f'"images" must be a list of at most {MAX_IMAGE_REQUESTS} requests.')
+    out = []
+    for item in raw:
+        if not isinstance(item, dict):
+            raise ReplyError('Each image request needs "path", "prompt" and "kind" ("logo" or "image").')
+        prompt = str(item.get("prompt", "")).strip()
+        if not prompt or len(prompt) > 1000:
+            raise ReplyError("Each image request needs a prompt of up to 1000 characters.")
+        kind = str(item.get("kind", "image")).lower()
+        out.append({"path": clean_image_path(str(item.get("path", ""))), "prompt": prompt,
+                    "kind": "logo" if kind == "logo" else "image",
+                    "consultant": str(item.get("consultant", "")).strip().lower() or None})
+    return out
 
 
 def parse_build_reply(text: str) -> tuple[AgentReply, list[FileBlock]]:

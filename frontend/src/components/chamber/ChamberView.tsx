@@ -247,12 +247,20 @@ export default function ChamberView({ runId }: { runId: string }) {
           <AnimatePresence>
             {panel === "board" && <Board tasks={state.tasks} seats={state.seats} onClose={() => setPanel(null)} />}
             {panel === "vault" && (
-              <Vault runId={runId} files={state.files} seats={state.seats} siteVersion={state.siteVersion} onClose={() => setPanel(null)} />
+              <Vault runId={runId} files={state.files} seats={state.seats} siteVersion={state.siteVersion} images={state.images} onClose={() => setPanel(null)} />
             )}
           </AnimatePresence>
           <AnimatePresence>
             {resultOpen && state.deliverable && (
-              <ResultPanel runId={runId} deliverable={state.deliverable} onClose={() => setResultOpen(false)} />
+              <ResultPanel
+                runId={runId}
+                deliverable={state.deliverable}
+                images={state.mission?.key === "create" ? state.images : []}
+                seats={state.seats}
+                siteVersion={state.siteVersion}
+                lastCheck={state.checks[state.checks.length - 1] ?? null}
+                onClose={() => setResultOpen(false)}
+              />
             )}
           </AnimatePresence>
 

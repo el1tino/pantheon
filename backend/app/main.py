@@ -300,6 +300,7 @@ SITE_TYPES = {
     ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",
     ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".json": "application/json",
     ".md": "text/plain; charset=utf-8", ".txt": "text/plain; charset=utf-8",
+    ".png": "image/png", ".webp": "image/webp", ".jpg": "image/jpeg",
 }
 
 

@@ -136,6 +136,7 @@ export default function Transcript({ seats, messages, live, thinking, tally, sco
             <div className="mb-1 flex items-start justify-between gap-2">
               {header(
                 m.seat,
+                <>
                 <span
                   className="rounded px-1.5 text-[10px] font-medium uppercase tracking-[0.08em]"
                   style={{ color: STANCE_COLOUR[m.stance], background: `${STANCE_COLOUR[m.stance]}14` }}
@@ -146,7 +147,16 @@ export default function Transcript({ seats, messages, live, thinking, tally, sco
                       {" "}→ {target.seat === MODERATOR ? "moderator" : target.seat === CLIENT ? "you" : seatOf(target.seat)?.name} ({m.reply_to})
                     </span>
                   )}
-                </span>,
+                </span>
+                {m.unverified && (
+                  <span
+                    className="rounded border border-amber-300/40 px-1.5 text-[10px] font-medium uppercase tracking-[0.08em] text-amber-200"
+                    title="This claims success but points at no artifact or passing check log, so it is not verified."
+                  >
+                    Unverified
+                  </span>
+                )}
+                </>,
               )}
               <span className="shrink-0 font-mono text-[10px] text-white/25">{m.id}</span>
             </div>
@@ -171,6 +181,21 @@ export default function Transcript({ seats, messages, live, thinking, tally, sco
                 {nominated.length ? `Puts itself forward for ${nominated.join(", ")}` : "Would rather review"}
               </div>
             )}
+            {Array.isArray(m.proposal?.images) && (
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {(m.proposal.images as { path: string; kind: string }[]).map((img) => (
+                  <span key={img.path} className="rounded bg-amber-200/10 px-1.5 py-0.5 font-mono text-[10.5px] text-amber-100/80">
+                    asks for {img.kind}: {img.path}
+                  </span>
+                ))}
+              </div>
+            )}
+            {typeof m.proposal?.prompt === "string" && (
+              <div className="mt-1.5 rounded border border-white/10 px-2 py-1 text-[11.5px] italic text-white/55">
+                “{m.proposal.prompt as string}”
+                {m.proposal.consultant ? <span className="not-italic text-white/35"> · {String(m.proposal.consultant)}</span> : null}
+              </div>
+            )}
             {Array.isArray(wrote) && (
               <div className="mt-1.5 flex flex-wrap gap-1">
                 {wrote.map((f) => (
@@ -178,7 +203,7 @@ export default function Transcript({ seats, messages, live, thinking, tally, sco
                 ))}
               </div>
             )}
-            {m.proposal && !opts && !nominated && !wrote && !m.proposal.question && (
+            {m.proposal && !opts && !nominated && !wrote && !m.proposal.question && !m.proposal.prompt && (
               <div className="mt-2 rounded border px-2.5 py-1.5 text-[12px]" style={{ borderColor: `${colour}33`, background: `${colour}0d` }}>
                 <span className="font-medium" style={{ color: colour }}>◆ {String(m.proposal.title ?? "Proposal")}</span>
                 {m.proposal.summary ? <span className="text-white/60"> — {String(m.proposal.summary)}</span> : null}

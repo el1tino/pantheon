@@ -8,6 +8,7 @@ A council of AI models from different providers takes on anything people use AI 
 - Milestone 2 (Debate engine) is done: seats debate a goal in the terminal with round limits, a majority vote, a moderator summary and a hard budget cap, and the transcript is saved.
 - Milestone 3 (The Chamber, live) is done: convene a council in the browser and watch the debate play out live.
 - Milestone 4 (Missions, voting and checkpoints) is done: Ask, Write, Plan, Decide and Learn run end to end, and Launch runs to its idea checkpoint. Options are scored anonymously, you pick at checkpoints and review the result, and you can address the council at any time.
+- Milestone 6 (Images and integration) is done: image consultants and the Create mission; Build and Launch now end with an Integrate phase that runs the site in a locked-down Docker container, sends errors back to their owners, makes sure the site uses its own logo and checks name, colours and prices for consistency. Claims of success without proof are marked unverified.
 - Milestone 5 (Roles and building) is done: Build produces a multi-file website, and Launch now goes through Research, Roles and Build to a site plus business documents. Workstream leads are voted in, you approve the task plan, builders work in parallel with reviews, and the Board and the Vault show it all, including a live preview of the site.
 
 No seat has a fixed role. Later in a run, each model puts itself forward for the work it's best at and the council votes on who does what.
@@ -19,6 +20,16 @@ No seat has a fixed role. Later in a run, each model puts itself forward for the
 ## Requirements
 
 Python 3.12, [uv](https://docs.astral.sh/uv/), Node.js 20+ and an [OpenRouter](https://openrouter.ai) key. Set a spending limit on the key.
+
+For the Integrate phase (Build and Launch), install [Docker](https://docs.docker.com/get-docker/) and build the runner image once:
+
+```bash
+docker build -t pantheon-runner:1 backend/runner
+```
+
+Without it, runs still finish, but the site is never run and anything that depends on that stays marked unverified.
+
+Image keys are optional. Add any of `RECRAFT_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `BFL_API_KEY` (FLUX) or `SEEDREAM_API_KEY` to `.env`. With none, a free practice consultant draws simple SVG logos and banners on your machine.
 
 ## Run it
 
@@ -47,9 +58,9 @@ Open http://localhost:3000, pick a mission (or leave it on Auto), write a goal, 
 | Plan | Trips, events, meals, workouts | **Options** → Detail → **Check** |
 | Decide | Choosing between products or offers | Criteria → Research → Debate → **Recommendation** |
 | Learn | Understanding a topic | **Approach** → Lesson → Quiz |
-| Build | Websites and small web apps | **Ideas** → **Roles** → Build → **Review** (Integrate comes in milestone 6) |
-| Launch | A business from scratch | **Ideas** → Research → **Roles** → Build → **Review**: a landing page, marketing copy, a launch plan, a business plan and pitch deck text (Integrate comes in milestone 6) |
-| Create | Logos, images | Coming in milestone 6 |
+| Build | Websites and small web apps | **Ideas** → **Roles** → Build → Integrate → **Review** |
+| Launch | A business from scratch | **Ideas** → Research → **Roles** → Build → Integrate → **Review**: a landing page, marketing copy, a launch plan, a business plan and pitch deck text |
+| Create | Logos, illustrations, image sets | **Concepts** → Create → **Review** the gallery |
 
 - **Auto:** the moderator reads the goal, picks the mission and says why.
 - **Options:** every seat proposes 1 to 3 options, and the others score them 1 to 5 without knowing who wrote them. No seat scores its own. You pick from the top 3, or ask for another round.
@@ -68,7 +79,7 @@ Open http://localhost:3000, pick a mission (or leave it on Auto), write a goal, 
 - **Build:** tasks run in waves that respect their dependencies, with up to 3 at once. Builders write real files under `projects/<run_id>/site/` and `docs/`. A builder may ask a teammate one question through the Board, and the moderator routes it. Each reviewer either approves or asks for specific changes (at most 2 rounds). If a seat's provider fails, its task moves to another seat.
 - **Review:** you see the site itself in the review card. Asking for changes sends them to the tasks they affect.
 - **The Board** shows every task by status, with owner, reviewer, files and any question thread. **The Vault** shows every file: code with line numbers, documents rendered, and a live preview of the site.
-- **The preview is sandboxed.** It's served read-only by the backend with a strict content security policy (no network access, no forms sent anywhere) inside a sandboxed iframe, so the site's scripts can't reach the app or the internet. Nothing a model writes runs on the server: running code in Docker comes in milestone 6.
+- **The preview is sandboxed.** It's served read-only by the backend with a strict content security policy (no network access, no forms sent anywhere) inside a sandboxed iframe, so the site's scripts can't reach the app or the internet. On the server, the site only ever runs inside the locked-down Docker container described below.
 - **How models write files:** a builder's reply is the usual JSON, followed by plain `=== FILE: path ===` … `=== END FILE ===` blocks. Paths must stay under `site/` or `docs/`, only text file types are allowed, and there's a size limit.
 
 ![Plan checkpoint](docs/milestone-5-plan.png)
@@ -76,6 +87,28 @@ Open http://localhost:3000, pick a mission (or leave it on Auto), write a goal, 
 ![The Board during a Launch build](docs/milestone-5-board.png)
 
 ![The Vault with the live site preview](docs/milestone-5-vault.png)
+
+### Images and integration
+
+- **Image consultants:** Recraft (vector; the default for logos), OpenAI images, Gemini image, FLUX and Seedream. Each one is only available if its key is in `.env`, and the key goes only to that provider. A builder asks for an image in its reply and picks the consultant. If that one isn't connected, the moderator says so and another one makes it. Every image passes through the budget cap. Generated SVG is cleaned with an allowlist: no scripts, no event handlers, no outside links.
+- **Create:** you pick a concept, seats are voted in as designers for each image, a different seat reviews each brief, a challenged image is regenerated once, and you review the gallery.
+- **Integrate:** the site runs in Docker using `backend/runner/`, and every check run gets a fresh container:
+  - no network
+  - a read-only filesystem
+  - only `site/` mounted, and read-only
+  - no environment variables (so no secrets)
+  - capped memory, CPU and processes
+  - no Linux capabilities and a non-root user
+  - a 30-second timeout
+
+  The checker loads every page with jsdom, runs its scripts, and reports script errors, missing files, syntax errors and whether the logo is used. Each error goes to the owner of its file, and the check runs again (at most 2 fix loops). If no logo was made, the page's owner gets one made. A consistency pass then compares the name, colours and prices across the site and the documents. Check logs are kept in `logs/check-N.json` and shown in the Vault.
+- **Fact-checking:** a message that claims success ("it works now", "tests pass") must list evidence (`"proposal": {"evidence": ["logs/check-2.json"]}`). A check log only counts if that check passed. Without valid evidence, the message shows an **Unverified** tag.
+
+![A failed check in the Vault](docs/milestone-6-check.png)
+
+![Review: checked in Docker, with its own logo](docs/milestone-6-review.png)
+
+![A Create gallery](docs/milestone-6-gallery.png)
 
 ### Practice without spending anything
 
@@ -125,7 +158,7 @@ The model IDs in `config/seats.yaml` change often. Check them at https://openrou
 ## Checks
 
 ```bash
-cd backend && uv run pytest        # mocked gateway, no API cost
+cd backend && uv run pytest        # mocked gateway, no API cost; the `docker` tests use the runner image if it's built
 cd frontend && npm run lint && npm run build
 ```
 

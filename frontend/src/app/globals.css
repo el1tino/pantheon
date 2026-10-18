@@ -43,3 +43,13 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .pedestal-shimmer { animation: none; opacity: 0.5; width: 100%; }
 }
+
+/* Behind images, so transparent areas read as transparent. */
+.checkerboard {
+  background-color: #15151b;
+  background-image:
+    linear-gradient(45deg, #1d1d25 25%, transparent 25%), linear-gradient(-45deg, #1d1d25 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #1d1d25 75%), linear-gradient(-45deg, transparent 75%, #1d1d25 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}

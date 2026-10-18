@@ -2,8 +2,8 @@
 // late joiners and (later) Replay all go through the same code.
 
 import {
-  CLIENT, ChamberEvent, Checkpoint, Deliverable, Diff, FileView, MODERATOR, Message, RailPhase, SeatInfo,
-  TaskView,
+  CLIENT, ChamberEvent, CheckView, Checkpoint, Deliverable, Diff, FileView, ImageView, MODERATOR, Message,
+  RailPhase, SeatInfo, TaskView,
 } from "./types";
 
 export type SeatStatus = "idle" | "thinking" | "speaking" | "absent";
@@ -42,6 +42,8 @@ export type ChamberState = {
   tasks: Record<string, TaskView>;
   files: Record<string, FileView>;
   siteVersion: number; // bumps whenever a file under site/ changes, to refresh the preview
+  images: ImageView[];
+  checks: CheckView[];
   heat: Heat;
   error: string | null;
   lastSeq: number;
@@ -71,6 +73,8 @@ export const initialState: ChamberState = {
   tasks: {},
   files: {},
   siteVersion: 0,
+  images: [],
+  checks: [],
   heat: {},
   error: null,
   lastSeq: 0,
@@ -234,6 +238,18 @@ export function reduce(state: ChamberState, ev: ChamberEvent): ChamberState {
     }
     case "artifact_created":
       if (p.kind === "deliverable") s.deliverable = { title: p.title, content: p.content, path: p.path };
+      if (p.kind === "image") {
+        const prev = s.images.find((i) => i.path === p.path);
+        const img: ImageView = {
+          path: p.path, kind: p.image_kind, consultant: p.consultant, prompt: p.prompt, seat: p.seat,
+          version: (prev?.version ?? 0) + 1,
+        };
+        s.images = [...s.images.filter((i) => i.path !== p.path), img];
+        s.siteVersion += 1;
+      }
+      if (p.kind === "check") {
+        s.checks = [...s.checks, { path: p.path, status: p.status, errors: p.errors, warnings: p.warnings, detail: p.detail ?? "" }];
+      }
       return s;
     case "cost_updated":
       s.cost = { spent: p.spent_usd, cap: p.cap_usd, ratio: p.ratio, warning: p.warning };

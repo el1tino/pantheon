@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import Markdown from "@/components/Markdown";
-import { TreeFile, fileText, runTree } from "@/lib/api";
+import { TreeFile, fileText, runTree, siteUrl } from "@/lib/api";
 import { SeatView } from "@/lib/chamber/reducer";
-import { FileView, MODERATOR } from "@/lib/chamber/types";
+import { FileView, ImageView, MODERATOR } from "@/lib/chamber/types";
+import CheckReport from "./CheckReport";
+import Gallery from "./Gallery";
 import SitePreview from "./SitePreview";
 
 type Props = {
@@ -13,14 +15,18 @@ type Props = {
   files: Record<string, FileView>;
   seats: SeatView[];
   siteVersion: number;
+  images: ImageView[];
   onClose: () => void;
 };
 
 const PREVIEW = "__preview__";
+const GALLERY = "__gallery__";
+const isImage = (p: string) => /\.(svg|png|webp|jpg)$/i.test(p);
+const isCheck = (p: string) => /^logs\/check-\d+\.json$/.test(p);
 const HIDDEN = new Set(["transcript.json"]);
 
 /** Everything the run produced: the site preview, code with line numbers, and documents. */
-export default function Vault({ runId, files, seats, siteVersion, onClose }: Props) {
+export default function Vault({ runId, files, seats, siteVersion, images, onClose }: Props) {
   const [tree, setTree] = useState<TreeFile[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [text, setText] = useState<string>("");
@@ -32,11 +38,13 @@ export default function Vault({ runId, files, seats, siteVersion, onClose }: Pro
   }, [runId, changes]);
 
   const hasSite = tree.some((f) => f.path === "site/index.html");
-  const current = selected ?? (hasSite ? PREVIEW : tree.find((f) => f.path.startsWith("docs/"))?.path ?? tree[0]?.path ?? null);
+  const current = selected ?? (hasSite ? PREVIEW : images.length ? GALLERY
+    : tree.find((f) => f.path.startsWith("docs/"))?.path ?? tree[0]?.path ?? null);
+  const special = current === PREVIEW || current === GALLERY || (current !== null && isImage(current));
 
   const currentVersion = files[current ?? ""]?.versions ?? 0;
   useEffect(() => {
-    if (!current || current === PREVIEW) return;
+    if (!current || special) return;
     let cancelled = false;
     fileText(runId, current)
       .then((t) => !cancelled && setText(t))
@@ -44,7 +52,7 @@ export default function Vault({ runId, files, seats, siteVersion, onClose }: Pro
     return () => {
       cancelled = true;
     };
-  }, [runId, current, currentVersion]);
+  }, [runId, current, currentVersion, special]);
 
   const groups = useMemo(() => {
     const g = new Map<string, TreeFile[]>();
@@ -84,6 +92,14 @@ export default function Vault({ runId, files, seats, siteVersion, onClose }: Pro
               <span className="text-amber-200">▶</span> Live preview
             </button>
           )}
+          {images.length > 0 && (
+            <button
+              onClick={() => setSelected(GALLERY)}
+              className={`mb-2 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left ${current === GALLERY ? "bg-amber-200/10 text-amber-100" : "text-white/70 hover:bg-white/[0.04]"}`}
+            >
+              <span className="text-amber-200">▦</span> Images · {images.length}
+            </button>
+          )}
           {groups.map(([dir, items]) => (
             <div key={dir} className="mb-2">
               <div className="px-2 py-1 text-[10.5px] uppercase tracking-[0.15em] text-white/30">{dir || "run"}</div>
@@ -108,10 +124,18 @@ export default function Vault({ runId, files, seats, siteVersion, onClose }: Pro
         <div className="min-w-0 flex-1 overflow-auto p-4">
           {!current && <p className="text-[13px] text-white/35">Nothing has been written yet.</p>}
           {current === PREVIEW && <SitePreview runId={runId} version={siteVersion} />}
-          {current && current !== PREVIEW && isMd && (
+          {current === GALLERY && <Gallery runId={runId} images={images} seats={seats} version={siteVersion} />}
+          {current && !special && isCheck(current) && <CheckReport text={text} onOpenFile={(p) => setSelected(p)} />}
+          {current && current !== GALLERY && isImage(current) && (
+            <div className="checkerboard flex h-full items-center justify-center rounded-lg p-6">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={siteUrl(runId, current.replace(/^site\//, ""), siteVersion)} alt={current} className="max-h-full max-w-full" />
+            </div>
+          )}
+          {current && !special && !isCheck(current) && isMd && (
             <div className="mx-auto max-w-3xl text-[14px] text-white/80"><Markdown text={text} /></div>
           )}
-          {current && current !== PREVIEW && !isMd && (
+          {current && !special && !isCheck(current) && !isMd && (
             <pre className="font-mono text-[12px] leading-[1.6] text-white/80">
               {text.split("\n").map((line, i) => (
                 <div key={i} className="flex">

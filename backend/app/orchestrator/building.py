@@ -12,15 +12,23 @@ Used by MissionRun (missions.py) for the Build and Launch missions:
 """
 
 import asyncio
+import re
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
 
 from app.config import get_settings
 from app.db import Task
+from app.gateway import images
 from app.orchestrator import sandbox
 from app.orchestrator.debate import MODERATOR, Entry, RunStopped
-from app.orchestrator.files import FORMAT_HELP, FileBlock, clean_path, parse_build_reply
+from app.orchestrator.files import (
+    FORMAT_HELP,
+    FileBlock,
+    clean_path,
+    parse_build_reply,
+    parse_image_requests,
+)
 from app.orchestrator.protocol import AgentReply, ReplyError, Stance
 from app.orchestrator.seats import SeatConfig
 
@@ -88,6 +96,7 @@ class BuildMixin:
         self.build_tasks = []
         self.file_owner: dict[str, str] = {}  # path -> task id
         self._written: set[str] = set()
+        self.images: list[dict[str, Any]] = []  # every image a consultant made
 
     # ------------------------------------------------------------ roles: workstreams and plan
 
@@ -323,7 +332,7 @@ class BuildMixin:
                 if built is None:
                     continue
                 entry, files = built
-            self._save_files(t, entry, files)
+            await self._save_work(t, entry, files)
             break
         else:
             self._task_status(t, "blocked")
@@ -339,7 +348,7 @@ class BuildMixin:
             revised = await self._build_turn(t, "revise", feedback=review.content)
             if revised is None:
                 break
-            self._save_files(t, *revised)
+            await self._save_work(t, *revised)
         self._task_status(t, "done")
 
     def _file_context(self, paths: list[str]) -> str:
@@ -402,8 +411,14 @@ class BuildMixin:
                        (p not in t.files and any(p in x.files for x in self.build_tasks if x is not t))]
             if foreign:
                 raise ReplyError(f"Those files belong to other tasks: {', '.join(foreign)}.")
+            requested = parse_image_requests((reply.proposal or {}).get("images"))
+            evidence = [str(p) for p in (reply.proposal or {}).get("evidence") or [] if isinstance(p, str)]
             reply.reply_to = t.entry_id if mode == "revise" else None
             reply.proposal = {"files": sorted(paths)}
+            if requested:
+                reply.proposal["images"] = requested
+            if evidence:
+                reply.proposal["evidence"] = evidence
             reply.votes = None
 
         if mode == "build":
@@ -417,12 +432,12 @@ class BuildMixin:
                    "You can ask once.")
             instruction = (f'Task {t.id} "{t.title}": {t.brief} Write: {files_list}.{answer}\n'
                            f'JSON: stance "report", reply_to null, content = one or two sentences on what you '
-                           f"built.{ask}\n{FORMAT_HELP}")
+                           f"built.{ask}\n{self._images_help()}\n{FORMAT_HELP}")
             label = f"STEP: BUILD TASK {t.id}"
         else:
             instruction = (f'Revise task {t.id} "{t.title}" ({files_list}) to address this:\n{feedback}\n'
                            f'JSON: stance "report", reply_to "{t.entry_id}", content = what you changed. Send the '
-                           f"complete updated files.\n{FORMAT_HELP}")
+                           f"complete updated files.\n{self._images_help()}\n{FORMAT_HELP}")
             label = f"STEP: REVISE TASK {t.id}"
 
         entry = await self._ask(
@@ -433,6 +448,70 @@ class BuildMixin:
         if entry is None:
             return None
         return entry, holder.get("files", [])
+
+    def _images_help(self) -> str:
+        have = ", ".join(f"{i['path']} ({i['kind']})" for i in self.images) or "none yet"
+        return (
+            'Images: if your files need an image that does not exist yet (a logo, a hero picture), add '
+            '"images": [{"path": "site/logo.svg", "kind": "logo" or "image", "prompt": "...", "consultant": "..."}] '
+            f'to "proposal" (at most 3). Consultants available: {", ".join(images.available_consultants())}; '
+            "Recraft's vector model is best for logos. Reference images by their path relative to the page. "
+            f"Images that already exist: {have}. If you claim something works, list the files or logs that "
+            'prove it in "proposal": {"evidence": ["logs/check-1.json"]}.'
+        )
+
+    async def _save_work(self, t: BuildTask, entry: Entry, files: list[FileBlock]) -> None:
+        self._save_files(t, entry, files)
+        for req in (entry.proposal or {}).get("images") or []:
+            await self._commission(entry.seat, req, t.id)
+
+    async def _commission(self, seat: str, req: dict[str, Any], task_id: str | None = None) -> str | None:
+        """Ask an image consultant for one image, under the budget cap. Returns the path written."""
+        consultant = images.pick_consultant(req.get("consultant"), req["kind"])
+        wanted = req.get("consultant")
+        if wanted and wanted != consultant.key:
+            known = images.CONSULTANTS.get(wanted)
+            why = "isn't connected (no API key)" if known else "isn't a consultant"
+            self._moderator_note("images", f"{known.label if known else wanted} {why}, so {consultant.label} "
+                                           f"makes {req['path']}.")
+        palette = self._palette()
+        self.log.emit("seat_thinking", seat=seat, state="thinking", activity=f"commissioning {req['path']}")
+        try:
+            result = await self._with_budget(
+                consultant.price(), lambda: images.generate(consultant, req["prompt"], req["kind"], palette)
+            )
+        except images.ImageError as exc:
+            self._moderator_note("images", f"{consultant.label} could not make {req['path']}: {exc}")
+            return None
+        self._record_cost(seat, result.cost_usd)
+        stem = req["path"].rsplit(".", 1)[0]
+        path = stem + result.ext
+        replaced = path in self._written
+        sandbox.write_bytes(self.run_id, path, result.data)
+        self._written.add(path)
+        if task_id:
+            self.file_owner.setdefault(path, task_id)
+        self.images = [i for i in self.images if i["path"] != path] + [{
+            "path": path, "kind": req["kind"], "prompt": req["prompt"], "consultant": result.consultant,
+            "seat": seat, "task": task_id,
+        }]
+        self.log.emit("artifact_created", path=path, kind="image", image_kind=req["kind"], seat=seat,
+                      consultant=result.consultant, prompt=req["prompt"][:300], task=task_id)
+        self.log.emit("diff_applied", seat=seat, file=path, lines_added=1, lines_removed=1 if replaced else 0,
+                      lines=[{"op": "+", "text": f"[{req['kind']} by {consultant.label}] {req['prompt'][:100]}"}])
+        if path != req["path"]:
+            self._moderator_note("images", f"{req['path']} arrived as {path} ({consultant.label} returns "
+                                           f"{result.ext[1:].upper()}); reference that path.")
+        return path
+
+    def _palette(self) -> list[str] | None:
+        """Colours already used in the site's CSS, so generated art matches the brand."""
+        css = "".join(
+            sandbox.safe_path(self.run_id, p).read_text(encoding="utf-8")
+            for p in self._written if p.endswith(".css") and sandbox.safe_path(self.run_id, p).is_file()
+        )
+        found = list(dict.fromkeys(re.findall(r"#[0-9a-fA-F]{6}\b", css)))
+        return found[:5] or None
 
     def _save_files(self, t: BuildTask, entry: Entry, files: list[FileBlock]) -> None:
         t.entry_id = entry.id
@@ -506,7 +585,13 @@ class BuildMixin:
         lines = [f"- {t.id} {t.title}: {', '.join(t.files)} (built by {t.owner}, reviewed by {t.reviewer}, "
                  f"{t.status})" for t in self.build_tasks]
         docs = [p for t in self.build_tasks for p in t.files if p.startswith("docs/")]
+        made = "\n".join(f"- {i['path']} ({i['kind']}, by {i['consultant']} for {i['seat']}): {i['prompt']}"
+                         for i in self.images)
+        checks = "\n".join(f"- {c['path']}: {c['status']}, {len(c['errors'])} error(s)"
+                           for c in getattr(self, "checks", []))
         return ("WHAT THE COUNCIL BUILT:\n" + "\n".join(lines)
+                + (f"\n\nIMAGES:\n{made}" if made else "")
+                + (f"\n\nCHECKS RUN IN DOCKER:\n{checks}" if checks else "")
                 + (f"\n\nDOCUMENTS:\n{self._file_context(docs)}" if docs else ""))
 
     async def _revise_build(self, note: str) -> None:
@@ -529,7 +614,7 @@ class BuildMixin:
             self._task_status(t, "changes")
             revised = await self._build_turn(t, "revise", feedback=f"The client asked: {note}")
             if revised:
-                self._save_files(t, *revised)
+                await self._save_work(t, *revised)
             self._task_status(t, "done")
 
 

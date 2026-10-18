@@ -26,6 +26,7 @@ from app.config import APP_NAME, get_settings
 from app.db import Task, Vote
 from app.orchestrator import sandbox
 from app.orchestrator.building import BuildMixin
+from app.orchestrator.creating import CreateMixin
 from app.orchestrator.debate import (
     CLIENT,
     MODERATOR,
@@ -34,6 +35,7 @@ from app.orchestrator.debate import (
     Entry,
     RunStopped,
 )
+from app.orchestrator.integration import IntegrateMixin
 from app.orchestrator.protocol import AgentReply, ReplyError, Stance, extract_json
 from app.orchestrator.seats import SeatConfig
 
@@ -208,20 +210,34 @@ MISSIONS: dict[str, Mission] = {
                 Phase("roles", "Roles", (Step(
                     "workstreams", "The council is building a small static website for the chosen idea.",
                 ),)),
-                Phase("build", "Build", (
-                    Step("build"),
+                Phase("build", "Build", (Step("build"),)),
+                Phase("integrate", "Integrate", (
+                    Step("integrate"),
+                    Step("consistency"),
                     Step("verdict", "Write a short README for the site in Markdown: what it is, who it is "
-                                    "for, the files and what each does, and how to open it. Output only the README."),
+                                    "for, the files and what each does, the check results (cite the check "
+                                    "log), and how to open it. Output only the README."),
                     Step("review"),
                 )),
-                Phase("integrate", "Integrate", available=False),
             ),
         ),
         Mission(
             "create", "Create", "Logos, illustrations, image sets",
-            "Mission: CREATE.", "Images",
-            (Phase("concepts", "Concepts"), Phase("roles", "Roles"), Phase("create", "Create")),
-            available=False,
+            "Mission: CREATE. The client wants images (a logo, illustrations, a set) made by the council's "
+            "image consultants.",
+            "Gallery",
+            (
+                Phase("concepts", "Concepts", (Step(
+                    "options", "Propose visual concepts: a short name and a summary of the style, mood, "
+                    "colours and what the images show.",
+                ),)),
+                Phase("create", "Create", (
+                    Step("create", "The council is making images for the chosen concept."),
+                    Step("verdict", "Write the gallery notes in Markdown: for each image, its file, what it "
+                                    "shows, the prompt and the consultant, and how to use it. Output only the notes."),
+                    Step("review"),
+                )),
+            ),
         ),
         Mission(
             "launch", "Launch", "A business from scratch",
@@ -243,14 +259,16 @@ MISSIONS: dict[str, Mission] = {
                     "landing page (static site), marketing copy and a launch plan, and a business plan with "
                     "pitch deck text, using the research.",
                 ),)),
-                Phase("build", "Build", (
-                    Step("build"),
+                Phase("build", "Build", (Step("build"),)),
+                Phase("integrate", "Integrate", (
+                    Step("integrate"),
+                    Step("consistency"),
                     Step("verdict", "Write a launch kit summary in Markdown: the business in two sentences, "
-                                    "what the council built (site and documents) and the first five things "
-                                    "the founder should do. Output only the summary."),
+                                    "what the council built (site and documents), the check results (cite "
+                                    "the check log) and the first five things the founder should do. Output "
+                                    "only the summary."),
                     Step("review"),
                 )),
-                Phase("integrate", "Integrate", available=False),
             ),
         ),
     ]
@@ -292,7 +310,7 @@ class Part:
     text: str = ""
 
 
-class MissionRun(BuildMixin, Debate):
+class MissionRun(CreateMixin, IntegrateMixin, BuildMixin, Debate):
     def __init__(self, session, goal: str, seats: list[SeatConfig], *, mission: str = "auto",
                  on_checkpoint: CheckpointFn | None = None, **kwargs):
         super().__init__(session, goal, seats, phase="convene", **kwargs)
@@ -310,6 +328,8 @@ class MissionRun(BuildMixin, Debate):
         self._seq = {"o": 0, "p": 0}
         self._last_verdict: Step | None = None
         self._init_build()
+        self._init_integrate()
+        self.image_kinds: dict[str, str] = {}
 
     # ------------------------------------------------------------ main loop
 
@@ -378,6 +398,9 @@ class MissionRun(BuildMixin, Debate):
             "review": self._step_review,
             "workstreams": self._step_workstreams,
             "build": self._step_build,
+            "integrate": self._step_integrate,
+            "consistency": self._step_consistency,
+            "create": self._step_create,
         }[step.kind]
         await handler(step)
 
@@ -974,14 +997,19 @@ class MissionRun(BuildMixin, Debate):
             answer = await self._checkpoint(
                 "review", path="deliverable.md", title=self.mission.deliverable if self.mission else "Result",
                 content=self.deliverable, preview=preview,
-                files=sorted(self._written),
+                files=sorted(self._written), images=self._gallery(),
+                check=self.checks[-1] if self.checks else None,
             )
             if answer.get("action") != "changes":
                 return
             note = str(answer.get("note", "")).strip() or "Please improve it."
             self.add_client_message(f"Changes requested: {note}")
-            if self.build_tasks:
+            if self.mission and self.mission.key == "create":
+                await self._revise_images(note)
+            elif self.build_tasks:
                 await self._revise_build(note)
+                if self.checks:
+                    await self._run_check()  # the site changed: run it again before you look
             else:
                 await self._step_revise(step, force=True)
             await self._step_verdict(self._last_verdict or Step("verdict"))

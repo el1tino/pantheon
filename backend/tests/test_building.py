@@ -203,7 +203,8 @@ def test_review_rounds_are_capped(session):
     assert res.status == "done"
     for t in m.build_tasks:
         assert len(chat.steps(f"REVIEW TASK {t.id}")) == 2
-        assert len(chat.steps(f"REVISE TASK {t.id}")) == 2
+        review_fixes = [u for _, _, u in chat.steps(f"REVISE TASK {t.id}") if "redo the header" in u]
+        assert len(review_fixes) == 2
     removed = [p for t, p in events(session, m.run_id) if t == "diff_applied" and p["lines_removed"] > 0]
     assert removed  # revisions really changed files
 

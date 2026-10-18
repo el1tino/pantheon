@@ -108,5 +108,5 @@ export async function fileText(runId: string, path: string): Promise<string> {
 }
 
 /** The built site is served by the backend with a strict CSP; the iframe is sandboxed too. */
-export const siteUrl = (runId: string, path = "index.html", version = 0) =>
-  `/api/runs/${runId}/site/${path}?v=${version}`;
+export const siteUrl = (runId: string, path = "index.html", version: number | string = 0, bust: number = 0) =>
+  `/api/runs/${runId}/site/${path}?v=${version}${bust ? `-${bust}` : ""}`;

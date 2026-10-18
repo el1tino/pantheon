@@ -33,3 +33,10 @@ def write_text(run_id: str, relative: str, text: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
     return path
+
+
+def write_bytes(run_id: str, relative: str, data: bytes) -> Path:
+    path = safe_path(run_id, relative)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+    return path

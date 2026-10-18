@@ -28,6 +28,10 @@ const STEP_LABEL: Record<string, string> = {
   vote: "Vote",
   build: "Building",
   workstreams: "Workstreams",
+  check: "Running checks",
+  fix: "Fixing",
+  consistency: "Consistency",
+  create: "Creating",
 };
 
 export function usd(v: number): string {

@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import Markdown from "@/components/Markdown";
 import { SeatView } from "@/lib/chamber/reducer";
 import { Checkpoint } from "@/lib/chamber/types";
+import Gallery from "./Gallery";
 import SitePreview from "./SitePreview";
 
 type Props = {
@@ -17,6 +18,8 @@ type Props = {
 
 /** The council stops and the client decides: pick an option, or review the result. */
 export default function CheckpointCard({ checkpoint, seats, runId, siteVersion, onAnswer }: Props) {
+  const gallery = checkpoint.kind === "review" && !checkpoint.preview ? checkpoint.images ?? [] : [];
+  const check = checkpoint.kind === "review" ? checkpoint.check : null;
   const preview = checkpoint.kind === "review" ? checkpoint.preview : null;
   const [view, setView] = useState<"site" | "text">(preview ? "site" : "text");
   const [busy, setBusy] = useState(false);
@@ -44,7 +47,7 @@ export default function CheckpointCard({ checkpoint, seats, runId, siteVersion, 
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         className={`flex max-h-full flex-col rounded-2xl border border-amber-200/20 bg-[#0d0c10]/95 shadow-2xl ${
-          preview ? "h-[min(860px,96%)] w-[min(1100px,96vw)]" : "w-[min(760px,96vw)]"
+          preview || gallery.length ? "h-[min(860px,96%)] w-[min(1100px,96vw)]" : "w-[min(760px,96vw)]"
         }`}
         style={{ boxShadow: "0 0 80px rgba(253, 230, 138, 0.08)" }}
       >
@@ -58,6 +61,15 @@ export default function CheckpointCard({ checkpoint, seats, runId, siteVersion, 
               ? "Each option was scored 1 to 5 by the other members, without knowing who wrote it."
               : "Accept it, or tell the council what to change and it will revise."}
           </p>
+          {check && (
+            <p className={`mt-2 text-[12px] ${check.status === "passed" ? "text-emerald-300/90" : check.status === "failed" ? "text-red-300/90" : "text-amber-200/90"}`}>
+              {check.status === "passed"
+                ? `Checked in Docker (${check.path}): the site loads, its scripts run and every file it uses exists.`
+                : check.status === "failed"
+                  ? `Still failing in Docker (${check.path}): ${check.errors.length} error(s) after the fix loops.`
+                  : "The site was not run (Docker unavailable), so it is unverified."}
+            </p>
+          )}
           {preview && (
             <div className="mt-3 flex gap-1">
               {(["site", "text"] as const).map((v) => (
@@ -103,6 +115,13 @@ export default function CheckpointCard({ checkpoint, seats, runId, siteVersion, 
                   <span className="absolute bottom-3 right-4 text-[11px] text-white/0 transition-colors group-hover:text-white/60">Pick this →</span>
                 </motion.button>
               ))}
+            </div>
+          ) : gallery.length > 0 ? (
+            <div className="space-y-5">
+              <Gallery runId={runId} images={gallery} seats={seats} version={siteVersion} />
+              <div className="rounded-xl border border-white/10 bg-black/30 p-4 text-[13.5px] text-white/80">
+                <Markdown text={checkpoint.kind === "review" ? checkpoint.content : ""} />
+              </div>
             </div>
           ) : preview && view === "site" ? (
             <SitePreview runId={runId} version={siteVersion} className="min-h-[50vh]" />

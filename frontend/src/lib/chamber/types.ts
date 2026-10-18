@@ -26,6 +26,17 @@ export type Message = {
   proposal: Record<string, unknown> | null;
   votes: { target: string; score: number }[] | null;
   cost_usd: number;
+  unverified?: boolean; // claimed success without pointing at proof
+};
+
+export type ImageView = { path: string; kind: string; consultant: string; prompt: string; seat: string; version: number };
+
+export type CheckView = {
+  path: string;
+  status: "passed" | "failed" | "not_run";
+  errors: number;
+  warnings: number;
+  detail: string;
 };
 
 export type DiffLine = { op: "+" | "-"; text: string };
@@ -69,7 +80,17 @@ export type PlanWorkstream = { id: string; title: string; brief: string; lead: s
 export type Checkpoint =
   | { kind: "budget"; spent: number; cap: number; estimate: number }
   | { kind: "pick"; phase: string; options: PickOption[]; can_retry: boolean }
-  | { kind: "review"; phase: string; title: string; content: string; path: string; preview?: string | null; files?: string[] }
+  | {
+      kind: "review";
+      phase: string;
+      title: string;
+      content: string;
+      path: string;
+      preview?: string | null;
+      files?: string[];
+      images?: { path: string; kind: string; prompt: string; consultant: string; seat: string }[];
+      check?: { path: string; status: string; errors: unknown[] } | null;
+    }
   | { kind: "plan"; phase: string; workstreams: PlanWorkstream[]; tasks: PlanTask[]; seats: string[] };
 
 export type TaskView = {
