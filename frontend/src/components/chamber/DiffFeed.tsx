@@ -22,7 +22,7 @@ export default function DiffFeed({ diffs, seats, onClose }: Props) {
       className="absolute inset-x-4 bottom-4 top-[46%] z-40 flex flex-col overflow-hidden glass-thick rounded-[22px] md:inset-x-auto md:left-1/2 md:w-[640px] md:-translate-x-1/2"
     >
       <div className="flex items-center justify-between border-b border-white/[0.07] px-4 py-2.5">
-        <span className="text-[11px] uppercase tracking-[0.25em] text-white/50">Live diff feed</span>
+        <span className="text-[15px] font-semibold text-white/90">Changes, live</span>
         <button onClick={onClose} className="text-[12px] text-white/50 hover:text-white">Close</button>
       </div>
       <div className="flex-1 overflow-y-auto px-2 py-2 font-mono text-[11.5px] leading-[1.55]">

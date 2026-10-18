@@ -47,7 +47,7 @@ export default function BottomBar({ status, busy, atCheckpoint, onPause, onResum
         <button
           type="submit"
           disabled={!active || sending || !text.trim()}
-          className="hidden h-10 accent-button rounded-full px-4 text-[13px] font-medium disabled:opacity-25 sm:block"
+          className={`hidden h-10 rounded-full px-4 text-[13px] font-medium transition-colors sm:block ${text.trim() && active ? "accent-button" : "glass-button text-white/30"}`}
         >
           Send
         </button>

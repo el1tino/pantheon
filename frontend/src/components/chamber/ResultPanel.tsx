@@ -42,7 +42,7 @@ export default function ResultPanel({ runId, deliverable, images, seats, siteVer
       className="absolute inset-x-3 bottom-3 top-14 z-40 flex flex-col overflow-hidden glass-thick rounded-[22px] md:inset-x-auto md:left-1/2 md:w-[720px] md:-translate-x-1/2"
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-white/[0.07] px-5 py-3">
-        <span className="text-[10px] uppercase tracking-[0.3em] text-amber-200/70">Result</span>
+        <span className="text-[11.5px] text-amber-200/70">Result</span>
         <span className="min-w-0 truncate text-[13px] text-white/70">{deliverable.title}</span>
         {lastCheck && (
           <span

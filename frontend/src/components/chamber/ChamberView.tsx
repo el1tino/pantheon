@@ -148,7 +148,7 @@ export default function ChamberView({ runId, mode = "live" }: { runId: string; m
               className={`rounded-md px-2.5 py-1 text-[12px] transition-colors ${active ? "bg-white/[0.08] text-white/90" : "text-white/45 hover:text-white/80"}`}
             >
               {label}
-              {count ? <span className="ml-1.5 font-mono text-[10px] text-white/35">{count}</span> : null}
+              {count ? <span className="ml-1.5 text-[11.5px] text-white/35">{count}</span> : null}
             </button>
           );
         })}
@@ -263,7 +263,7 @@ export default function ChamberView({ runId, mode = "live" }: { runId: string; m
             </Link>
           )}
           {replaying && (
-            <span className={`absolute left-4 top-3 z-40 glass-chip rounded-full px-2.5 py-0.5 text-[10.5px] uppercase tracking-[0.2em] text-white/50 ${clean ? "hidden" : ""}`}>
+            <span className={`absolute left-4 top-3 z-40 glass-chip rounded-full px-2.5 py-0.5 text-[11.5px] text-white/50 ${clean ? "hidden" : ""}`}>
               Replay
             </span>
           )}
@@ -271,7 +271,7 @@ export default function ChamberView({ runId, mode = "live" }: { runId: string; m
             onClick={() => setSheetOpen(true)}
             className={`${clean ? "hidden " : ""}absolute bottom-3 left-1/2 z-40 -translate-x-1/2 glass-chip rounded-full px-4 py-1.5 text-[12px] text-white/70 md:hidden`}
           >
-            Transcript · {state.messages.length}
+            Transcript ({state.messages.length})
           </button>
 
           <AnimatePresence>
@@ -286,7 +286,7 @@ export default function ChamberView({ runId, mode = "live" }: { runId: string; m
               }}
               className="absolute bottom-4 right-4 z-40 glass-chip rounded-full !border-amber-200/30 px-4 py-1.5 text-[12px] text-amber-100/90 hover:!border-amber-200/60"
             >
-              View result · {state.deliverable.title}
+              View the result
             </button>
           )}
           <AnimatePresence>

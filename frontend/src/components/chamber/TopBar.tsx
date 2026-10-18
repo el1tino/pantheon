@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { APP_NAME } from "@/lib/app";
 import { RailPhase } from "@/lib/chamber/types";
+import Wordmark from "@/components/Wordmark";
 
 type Props = {
   goal: string;
@@ -56,11 +56,11 @@ export default function TopBar({ goal, mission, phases, phase, round, maxRounds,
   return (
     <header className="glass relative z-30 mx-2 mt-2 flex h-14 shrink-0 items-center gap-6 rounded-2xl px-4 md:mx-3 md:mt-3 md:px-5">
       <div className="flex min-w-0 flex-1 items-center gap-3">
-        <Link href="/" className="shrink-0 text-[13px] font-semibold tracking-[0.18em] text-white/80 uppercase hover:text-white">
-          {APP_NAME}
+        <Link href="/" className="shrink-0 opacity-90 hover:opacity-100" aria-label="Home">
+          <Wordmark size={14} />
         </Link>
         {mission && (
-          <span className="shrink-0 rounded-full border border-amber-200/25 px-2 py-0.5 text-[10.5px] uppercase tracking-[0.18em] text-amber-100/80">
+          <span className="shrink-0 rounded-full border border-amber-200/25 px-2 py-0.5 text-[11.5px] text-amber-100/80">
             {mission}
           </span>
         )}
@@ -94,11 +94,11 @@ export default function TopBar({ goal, mission, phases, phase, round, maxRounds,
             </div>
           );
         })}
-        <span className="ml-3 font-mono text-[11px] text-white/40">{roundLabel(round, maxRounds, status)}</span>
+        <span className="ml-3 text-[11px] text-white/40">{roundLabel(round, maxRounds, status)}</span>
       </nav>
 
       <div className="flex flex-1 items-center justify-end gap-3" title="Spent against the budget cap">
-        <span className="whitespace-nowrap font-mono text-[12px] tabular-nums" style={{ color: meterColour }}>
+        <span className="whitespace-nowrap text-[12px] tabular-nums" style={{ color: meterColour }}>
           {usd(spent)} <span className="text-white/30">/ {usd(cap)}</span>
         </span>
         <span className="relative hidden h-1.5 w-24 overflow-hidden rounded-full bg-white/10 sm:block md:w-32">

@@ -53,8 +53,8 @@ export default function Core({ x, y, width, plus, minus, flash, decision, onOpen
             />
           )}
         </AnimatePresence>
-        <span className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] uppercase tracking-[0.3em] text-white/30 transition-colors group-hover:text-white/60">
-          Project core
+        <span className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-[12px] text-white/0 transition-colors group-hover:text-white/55">
+          Show the changes
         </span>
       </button>
 
@@ -78,7 +78,7 @@ export default function Core({ x, y, width, plus, minus, flash, decision, onOpen
             className="mx-auto mt-5 w-max max-w-[min(560px,80vw)] glass-chip rounded-full px-4 py-1.5 text-center text-[13px] text-white/85"
             style={{ borderColor: `${decision.colour}66`, boxShadow: `0 0 30px ${decision.colour}22` }}
           >
-            <span className="mr-2 text-[10px] uppercase tracking-[0.2em]" style={{ color: decision.colour }}>
+            <span className="mr-2 text-[11.5px]" style={{ color: decision.colour }}>
               Decided by {decision.by}
             </span>
             {decision.title}

@@ -79,7 +79,7 @@ export default function Vault({ runId, files, seats, siteVersion, images, onClos
       className="absolute inset-3 z-40 flex flex-col overflow-hidden glass-thick rounded-[22px]"
     >
       <div className="flex items-center gap-3 border-b border-white/[0.07] px-5 py-3">
-        <span className="text-[10px] uppercase tracking-[0.3em] text-white/50">The Vault</span>
+        <span className="text-[15px] font-semibold text-white/90">Vault</span>
         <span className="text-[12px] text-white/35">{tree.length} files</span>
         {current && current !== PREVIEW && (
           <a href={`/api/runs/${runId}/files/${current}`} className="ml-4 text-[12px] text-white/50 hover:text-white">Download {current.split("/").pop()}</a>
@@ -101,12 +101,12 @@ export default function Vault({ runId, files, seats, siteVersion, images, onClos
               onClick={() => setSelected(GALLERY)}
               className={`mb-2 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left ${current === GALLERY ? "bg-amber-200/10 text-amber-100" : "text-white/70 hover:bg-white/[0.04]"}`}
             >
-              <span className="text-amber-200">▦</span> Images · {images.length}
+              <span className="text-amber-200">▦</span> Images ({images.length})
             </button>
           )}
           {groups.map(([dir, items]) => (
             <div key={dir} className="mb-2">
-              <div className="px-2 py-1 text-[10.5px] uppercase tracking-[0.15em] text-white/30">{dir || "run"}</div>
+              <div className="px-2 py-1 text-[11.5px] text-white/30">{dir || "run"}</div>
               {items.map((f) => {
                 const info = files[f.path];
                 return (

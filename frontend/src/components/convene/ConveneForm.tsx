@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { APP_NAME, CAP_A_GROUP, GROUP_NAME, THE_GROUP } from "@/lib/app";
+import { CAP_A_GROUP, GROUP_NAME, THE_GROUP } from "@/lib/app";
 import DemoList from "@/components/DemoList";
+import Wordmark from "@/components/Wordmark";
 import SeatLogo from "@/components/SeatLogo";
 import TrademarkNote from "@/components/TrademarkNote";
 import {
@@ -41,9 +42,9 @@ function AccountBar({ user }: { user: User }) {
     }
   };
   return (
-    <div className="mb-8 flex flex-col items-end gap-2 text-[12px] text-white/45">
-      <div className="flex items-center gap-4">
-        <span className="truncate">{user.email}</span>
+    <div className="flex flex-col items-end gap-2 text-[13px] text-white/50">
+      <div className="flex items-center gap-4 whitespace-nowrap">
+        <span className="hidden max-w-[220px] truncate sm:inline">{user.email}</span>
         {user.is_owner && (
           <button onClick={invite} className="text-amber-100/80 hover:text-amber-100">Invite someone</button>
         )}
@@ -82,7 +83,7 @@ function DemoScreen() {
   return (
     <main className="chamber-stage flex min-h-dvh flex-col items-center px-4 py-16 md:py-24">
       <div className="w-full max-w-md">
-        <p className="text-center text-[13px] font-semibold uppercase tracking-[0.5em] text-white/80">{APP_NAME}</p>
+        <div className="flex justify-center"><Wordmark /></div>
         <p className="mt-3 text-center text-2xl font-medium tracking-tight text-white">{CAP_A_GROUP} of AI models, at work</p>
         <p className="mt-3 text-center text-[13px] leading-relaxed text-white/45">
           Models from different providers debate a goal, vote on who does what and build the result. This is a
@@ -109,7 +110,7 @@ export default function ConveneForm() {
   if (gate === "offline") {
     return (
       <main className="chamber-stage flex min-h-dvh flex-col items-center justify-center px-4 text-center">
-        <p className="text-[13px] font-semibold uppercase tracking-[0.5em] text-white/80">{APP_NAME}</p>
+        <Wordmark />
         <p className="mt-4 text-[15px] text-white/75">Can&apos;t reach {THE_GROUP}.</p>
         <p className="mt-2 text-[13px] text-white/40">Is the backend running? Locally it listens on port 8000.</p>
         <button onClick={() => window.location.reload()} className="mt-6 text-[13px] text-amber-100/80 hover:text-amber-100">
@@ -161,22 +162,36 @@ function Convene({ user }: { user: User }) {
   };
 
   return (
-    <main className="chamber-stage min-h-dvh px-5 py-12 md:py-20">
+    <main className="chamber-stage min-h-dvh px-5 py-8 md:py-10">
       <div className="mx-auto max-w-3xl">
-        <AccountBar user={user} />
-        <motion.h1
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7 }}
-          className="text-center text-[13px] font-semibold uppercase tracking-[0.5em] text-white/80"
-        >
-          {APP_NAME}
-        </motion.h1>
-        <p className="mt-3 text-center text-2xl font-medium tracking-tight text-white md:text-3xl">Convene {THE_GROUP}</p>
+        <header className="flex items-start justify-between gap-6">
+          <Wordmark />
+          <AccountBar user={user} />
+        </header>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}>
+          <h1 className="mt-14 max-w-xl text-[34px] font-semibold leading-[1.08] tracking-[-0.025em] text-white md:text-[44px]">
+            What should {THE_GROUP} work on?
+          </h1>
+          <p className="mt-4 max-w-lg text-[16px] leading-relaxed text-white/55">
+            Ask it the way you&apos;d ask a person. The models debate it, vote on who does what and deliver the
+            result while you watch.
+          </p>
+        </motion.div>
 
-        <form onSubmit={submit} className="glass mt-10 space-y-8 rounded-[28px] p-5 md:p-8">
+        <form onSubmit={submit} className="glass mt-8 space-y-8 rounded-[28px] p-5 md:p-7">
+          <label className="block">
+            <span className="sr-only">Your goal</span>
+            <textarea
+              value={goal}
+              onChange={(e) => setGoal(e.target.value)}
+              placeholder={EXAMPLES[mission] ?? EXAMPLES.auto}
+              rows={3}
+              autoFocus
+              className="w-full resize-y glass-well rounded-2xl p-4 text-[17px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/25"
+            />
+          </label>
           <div>
-            <span className="mb-2 block text-[11px] uppercase tracking-[0.2em] text-white/40">Mission</span>
+            <span className="mb-2.5 block text-[13px] font-medium text-white/60">Kind of job</span>
             <div className="flex flex-wrap gap-2">
               {[{ key: "auto", label: "Auto", tagline: "The moderator reads your goal and picks", available: true }, ...missions].map((m) => {
                 const on = mission === m.key;
@@ -197,7 +212,7 @@ function Convene({ user }: { user: User }) {
                     }`}
                   >
                     {m.label}
-                    {!m.available && <span className="ml-1.5 text-[10px] uppercase tracking-wider">soon</span>}
+                    {!m.available && <span className="ml-1.5 text-[11px] text-white/30">soon</span>}
                   </button>
                 );
               })}
@@ -209,21 +224,11 @@ function Convene({ user }: { user: User }) {
             </p>
           </div>
 
-          <label className="block">
-            <span className="mb-2 block text-[11px] uppercase tracking-[0.2em] text-white/40">The goal</span>
-            <textarea
-              value={goal}
-              onChange={(e) => setGoal(e.target.value)}
-              placeholder={EXAMPLES[mission] ?? EXAMPLES.auto}
-              rows={3}
-              className="w-full resize-y glass-well rounded-2xl p-4 text-[15px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/25"
-            />
-          </label>
 
           <div>
             <div className="mb-3 flex items-baseline justify-between">
-              <span className="text-[11px] uppercase tracking-[0.2em] text-white/40">Seats · {picked.length} of {seats.length || 13}</span>
-              <span className="text-[11px] text-white/30">Pick who attends</span>
+              <span className="text-[13px] font-medium text-white/60">Who attends</span>
+              <span className="text-[13px] text-white/40">{picked.length} of {seats.length || 13} seats</span>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
               {seats.map((s) => {
@@ -242,7 +247,7 @@ function Convene({ user }: { user: User }) {
                       style={{ opacity: on ? 1 : 0.45, borderColor: on ? `${s.colour}55` : undefined }}
                     >
                       <SeatLogo seat={s} size={18} />
-                      <span className="absolute -bottom-1 -right-1 font-mono text-[9px] font-medium" style={{ color: s.colour }}>
+                      <span className="absolute -bottom-1 -right-1 text-[9px] font-medium" style={{ color: s.colour }}>
                         {s.letter}
                       </span>
                     </span>
@@ -258,7 +263,7 @@ function Convene({ user }: { user: User }) {
 
           <div className="flex flex-wrap items-end gap-6">
             <label className="block">
-              <span className="mb-2 block text-[11px] uppercase tracking-[0.2em] text-white/40">Rounds</span>
+              <span className="mb-2.5 block text-[13px] font-medium text-white/60">Debate rounds</span>
               <select
                 value={rounds}
                 onChange={(e) => setRounds(Number(e.target.value))}
@@ -268,13 +273,13 @@ function Convene({ user }: { user: User }) {
               </select>
             </label>
             <label className="block">
-              <span className="mb-2 block text-[11px] uppercase tracking-[0.2em] text-white/40">Budget cap</span>
+              <span className="mb-2.5 block text-[13px] font-medium text-white/60">Spend at most</span>
               <span className="glass-well flex h-10 items-center rounded-xl px-3">
                 <span className="text-white/40">$</span>
                 <input
                   type="number" min="0.01" step="any" value={budget}
                   onChange={(e) => setBudget(e.target.value)}
-                  className="w-20 bg-transparent px-1 font-mono text-[14px] text-white outline-none"
+                  className="w-20 bg-transparent px-1 text-[14px] text-white outline-none"
                 />
               </span>
             </label>
@@ -299,14 +304,14 @@ function Convene({ user }: { user: User }) {
 
         {runs.length > 0 && (
           <section className="mt-14">
-            <h2 className="mb-3 text-[11px] uppercase tracking-[0.2em] text-white/40">Recent runs</h2>
+            <h2 className="mb-3 text-[15px] font-semibold text-white/85">Your runs</h2>
             <ul className="glass divide-y divide-white/[0.06] overflow-hidden rounded-2xl">
               {runs.map((r) => (
                 <li key={r.id}>
                   <Link href={`/chamber/${r.id}`} className="flex items-center gap-4 px-4 py-3 hover:bg-white/[0.03]">
-                    <span className="min-w-0 flex-1 truncate text-[13px] text-white/75">{r.goal}</span>
-                    <span className="font-mono text-[11px] text-white/35">${r.spent_usd.toFixed(4)}</span>
-                    <span className="w-16 text-right text-[11px] text-white/40">{r.status}</span>
+                    <span className="min-w-0 flex-1 truncate text-[14px] text-white/80">{r.goal}</span>
+                    <span className="text-[12px] text-white/40">${r.spent_usd.toFixed(4)}</span>
+                    <span className="w-16 text-right text-[12px] text-white/45">{r.status}</span>
                   </Link>
                 </li>
               ))}
