@@ -24,18 +24,27 @@ def _demo_dirs() -> list[Path]:
     return sorted(p for p in root.iterdir() if (p / "run.json").is_file()) if root.is_dir() else []
 
 
+def _unchanged(session: Session, run: Run, meta: dict, events: list[dict]) -> bool:
+    """Already imported from this same recording (the first event lists the seats, logos included)."""
+    if run.phase != meta.get("phase") or run.spent_usd != meta.get("spent_usd"):
+        return False
+    first = session.exec(select(Event).where(Event.run_id == run.id, Event.seq == 1)).first()
+    return bool(events) and first is not None and json.loads(first.payload_json) == events[0]["payload"]
+
+
 def import_demos(session: Session) -> list[str]:
     imported = []
     for folder in _demo_dirs():
         meta = json.loads((folder / "run.json").read_text())
         run_id = meta["id"]
         existing = session.get(Run, run_id)
-        if existing and existing.public and existing.phase == meta.get("phase") and \
-                existing.spent_usd == meta.get("spent_usd"):
-            continue  # already imported, unchanged
+        if existing and not existing.public:
+            continue  # never overwrite a real run that happens to share the id
+        with gzip.open(folder / "events.json.gz", "rt", encoding="utf-8") as f:
+            events = json.load(f)
+        if existing and _unchanged(session, existing, meta, events):
+            continue
         if existing:
-            if not existing.public:
-                continue  # never overwrite a real run that happens to share the id
             for ev in session.exec(select(Event).where(Event.run_id == run_id)).all():
                 session.delete(ev)
             session.delete(existing)
@@ -43,8 +52,6 @@ def import_demos(session: Session) -> list[str]:
         session.add(Run(id=run_id, goal=meta["goal"], status=meta.get("status", "done"),
                         phase=meta.get("phase", "done"), budget_usd=meta.get("budget_usd", 0),
                         spent_usd=meta.get("spent_usd", 0), public=True, owner_id=None))
-        with gzip.open(folder / "events.json.gz", "rt", encoding="utf-8") as f:
-            events = json.load(f)
         for ev in events:
             session.add(Event(run_id=run_id, seq=ev["seq"], type=ev["type"],
                               payload_json=json.dumps(ev["payload"]),

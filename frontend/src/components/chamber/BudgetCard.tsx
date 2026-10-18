@@ -32,12 +32,12 @@ export default function BudgetCard({ spent, cap, estimate, onRaise, onStop }: Pr
   };
   const newCap = Number(value);
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-[2px]">
+    <div className="glass-scrim absolute inset-0 z-50 flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, y: 24, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-        className="w-[min(420px,92vw)] rounded-2xl border border-red-400/25 bg-[#0d0c10] p-6 shadow-2xl"
+        className="glass-thick w-[min(420px,92vw)] rounded-[22px] !border-red-400/25 p-6"
         style={{ boxShadow: "0 0 60px rgba(248,113,113,0.12)" }}
       >
         <div className="mb-1 text-[10px] uppercase tracking-[0.3em] text-red-300/80">Budget cap reached</div>
@@ -49,7 +49,7 @@ export default function BudgetCard({ spent, cap, estimate, onRaise, onStop }: Pr
         </p>
         <label className="mb-4 flex items-center gap-2 text-[13px] text-white/60">
           New cap
-          <span className="flex items-center rounded-md border border-white/15 bg-white/[0.04] px-2">
+          <span className="glass-well flex items-center rounded-xl px-2">
             <span className="text-white/40">$</span>
             <input
               type="number"
@@ -66,14 +66,14 @@ export default function BudgetCard({ spent, cap, estimate, onRaise, onStop }: Pr
           <button
             disabled={busy || !(newCap > cap)}
             onClick={() => act(() => onRaise(newCap))}
-            className="flex-1 rounded-md bg-amber-300 px-3 py-2 text-[13px] font-medium text-black disabled:opacity-40"
+            className="flex-1 accent-button rounded-full px-3 py-2 text-[13px] font-medium disabled:opacity-40"
           >
             Raise cap and continue
           </button>
           <button
             disabled={busy}
             onClick={() => act(onStop)}
-            className="rounded-md border border-white/15 px-3 py-2 text-[13px] text-white/80 hover:border-white/35 disabled:opacity-40"
+            className="glass-button rounded-full px-3 py-2 text-[13px] text-white/80 disabled:opacity-40"
           >
             Stop run
           </button>

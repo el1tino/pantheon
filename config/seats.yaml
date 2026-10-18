@@ -2,20 +2,21 @@
 # model_id values change often: confirm each one at https://openrouter.ai/models
 # before relying on it (they are first used in milestone 2).
 # sensitive_ok: false means the seat never receives files marked private.
+# logo: a file in frontend/public/logos/ (without .svg), shown on the seat to identify the provider.
 # There are no fixed roles: in the Roles phase each seat puts itself forward for work
 # and the council votes on who does what.
 
 seats:
-  - { letter: A, name: Claude,     provider: Anthropic,   model_id: anthropic/claude-sonnet-4.5,       colour: "#F5A524", voice_id: "", sensitive_ok: true }
-  - { letter: B, name: GPT,        provider: OpenAI,      model_id: openai/gpt-4o-mini,                colour: "#10B981", voice_id: "", sensitive_ok: true }
-  - { letter: C, name: Gemini,     provider: Google,      model_id: google/gemini-2.5-flash,           colour: "#7C6CF2", voice_id: "", sensitive_ok: true }
-  - { letter: D, name: DeepSeek,   provider: DeepSeek,    model_id: deepseek/deepseek-chat,            colour: "#22D3EE", voice_id: "", sensitive_ok: false }
-  - { letter: E, name: Grok,       provider: xAI,         model_id: x-ai/grok-3-mini,                  colour: "#C0C4CC", voice_id: "", sensitive_ok: true }
-  - { letter: F, name: Mistral,    provider: Mistral AI,  model_id: mistralai/mistral-small-3.2-24b-instruct, colour: "#FB7A24", voice_id: "", sensitive_ok: true }
-  - { letter: G, name: Qwen,       provider: Alibaba,     model_id: qwen/qwen3-235b-a22b,              colour: "#A855F7", voice_id: "", sensitive_ok: false }
-  - { letter: H, name: Kimi,       provider: Moonshot AI, model_id: moonshotai/kimi-k2,                colour: "#F43F5E", voice_id: "", sensitive_ok: false }
-  - { letter: I, name: GLM,        provider: Z.ai,        model_id: z-ai/glm-4.5,                      colour: "#14B8A6", voice_id: "", sensitive_ok: false }
-  - { letter: J, name: MiMo,       provider: Xiaomi,      model_id: xiaomi/mimo-7b,                    colour: "#FF7F6B", voice_id: "", sensitive_ok: false }
-  - { letter: K, name: Muse Spark, provider: Meta,        model_id: meta-llama/llama-4-maverick,       colour: "#38BDF8", voice_id: "", sensitive_ok: true }
-  - { letter: L, name: Nemotron,   provider: NVIDIA,      model_id: nvidia/llama-3.3-nemotron-super-49b-v1, colour: "#A3E635", voice_id: "", sensitive_ok: true }
-  - { letter: M, name: Granite,    provider: IBM,         model_id: ibm-granite/granite-4.0-h-micro,   colour: "#4F7CAC", voice_id: "", sensitive_ok: true }
+  - { letter: A, name: Claude,     provider: Anthropic,   model_id: anthropic/claude-sonnet-4.5,       colour: "#F5A524", logo: claude, voice_id: "", sensitive_ok: true }
+  - { letter: B, name: GPT,        provider: OpenAI,      model_id: openai/gpt-4o-mini,                colour: "#10B981", logo: openai, voice_id: "", sensitive_ok: true }
+  - { letter: C, name: Gemini,     provider: Google,      model_id: google/gemini-2.5-flash,           colour: "#7C6CF2", logo: gemini, voice_id: "", sensitive_ok: true }
+  - { letter: D, name: DeepSeek,   provider: DeepSeek,    model_id: deepseek/deepseek-chat,            colour: "#22D3EE", logo: deepseek, voice_id: "", sensitive_ok: false }
+  - { letter: E, name: Grok,       provider: xAI,         model_id: x-ai/grok-3-mini,                  colour: "#C0C4CC", logo: grok, voice_id: "", sensitive_ok: true }
+  - { letter: F, name: Mistral,    provider: Mistral AI,  model_id: mistralai/mistral-small-3.2-24b-instruct, colour: "#FB7A24", logo: mistral, voice_id: "", sensitive_ok: true }
+  - { letter: G, name: Qwen,       provider: Alibaba,     model_id: qwen/qwen3-235b-a22b,              colour: "#A855F7", logo: qwen, voice_id: "", sensitive_ok: false }
+  - { letter: H, name: Kimi,       provider: Moonshot AI, model_id: moonshotai/kimi-k2,                colour: "#F43F5E", logo: kimi, voice_id: "", sensitive_ok: false }
+  - { letter: I, name: GLM,        provider: Z.ai,        model_id: z-ai/glm-4.5,                      colour: "#14B8A6", logo: zai, voice_id: "", sensitive_ok: false }
+  - { letter: J, name: MiMo,       provider: Xiaomi,      model_id: xiaomi/mimo-7b,                    colour: "#FF7F6B", logo: mimo, voice_id: "", sensitive_ok: false }
+  - { letter: K, name: Muse Spark, provider: Meta,        model_id: meta-llama/llama-4-maverick,       colour: "#38BDF8", logo: meta, voice_id: "", sensitive_ok: true }
+  - { letter: L, name: Nemotron,   provider: NVIDIA,      model_id: nvidia/llama-3.3-nemotron-super-49b-v1, colour: "#A3E635", logo: nvidia, voice_id: "", sensitive_ok: true }
+  - { letter: M, name: Granite,    provider: IBM,         model_id: ibm-granite/granite-4.0-h-micro,   colour: "#4F7CAC", logo: ibm, voice_id: "", sensitive_ok: true }

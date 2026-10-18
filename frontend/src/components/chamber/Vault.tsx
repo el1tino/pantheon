@@ -76,7 +76,7 @@ export default function Vault({ runId, files, seats, siteVersion, images, onClos
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-      className="absolute inset-3 z-40 flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0b0b0f]/95 shadow-2xl backdrop-blur"
+      className="absolute inset-3 z-40 flex flex-col overflow-hidden glass-thick rounded-[22px]"
     >
       <div className="flex items-center gap-3 border-b border-white/[0.07] px-5 py-3">
         <span className="text-[10px] uppercase tracking-[0.3em] text-white/50">The Vault</span>

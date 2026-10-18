@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { SeatView } from "@/lib/chamber/reducer";
 import { TaskView } from "@/lib/chamber/types";
+import SeatLogo from "@/components/SeatLogo";
 
 type Props = { tasks: Record<string, TaskView>; seats: SeatView[]; onClose: () => void };
 
@@ -29,14 +30,14 @@ export default function Board({ tasks, seats, onClose }: Props) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-      className="absolute inset-3 z-40 flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0b0b0f]/95 shadow-2xl backdrop-blur"
+      className="absolute inset-3 z-40 flex flex-col overflow-hidden glass-thick rounded-[22px]"
     >
       <div className="flex items-center gap-4 border-b border-white/[0.07] px-5 py-3">
         <span className="text-[10px] uppercase tracking-[0.3em] text-white/50">The Board</span>
         <div className="flex flex-wrap gap-2">
           {leads.map((w) => (
             <span key={w.id} className="flex items-center gap-1.5 rounded-full border border-white/10 px-2.5 py-0.5 text-[11.5px] text-white/70">
-              <span className="h-1.5 w-1.5 rounded-full" style={{ background: seat(w.owner)?.colour }} />
+              {seat(w.owner) ? <SeatLogo seat={seat(w.owner)!} size={12} /> : <span className="h-1.5 w-1.5 rounded-full bg-white/40" />}
               {w.title} · <span style={{ color: seat(w.owner)?.colour }}>{seat(w.owner)?.name ?? w.owner}</span>
             </span>
           ))}
@@ -63,7 +64,7 @@ export default function Board({ tasks, seats, onClose }: Props) {
                       <motion.div
                         layout
                         key={t.id}
-                        className="rounded-lg border border-white/10 bg-[#121218] p-2.5"
+                        className="glass rounded-xl p-2.5"
                         style={{ borderLeft: `3px solid ${owner?.colour ?? "#555"}` }}
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -72,7 +73,7 @@ export default function Board({ tasks, seats, onClose }: Props) {
                         </div>
                         {t.workstream && <div className="mt-0.5 text-[10.5px] text-white/35">{t.workstream}</div>}
                         <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
-                          <span style={{ color: owner?.colour }}>{owner?.name ?? t.owner ?? "unassigned"}</span>
+                          <span className="inline-flex items-center gap-1" style={{ color: owner?.colour }}>{owner && <SeatLogo seat={owner} size={12} />}{owner?.name ?? t.owner ?? "unassigned"}</span>
                           {reviewer && <span className="text-white/35">review: <span style={{ color: reviewer.colour }}>{reviewer.name}</span></span>}
                         </div>
                         {t.files.length > 0 && (

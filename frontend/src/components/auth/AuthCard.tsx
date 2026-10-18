@@ -14,7 +14,7 @@ type Props = {
 };
 
 const field =
-  "h-11 w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 text-[14px] text-white outline-none transition-colors placeholder:text-white/25 focus:border-white/30";
+  "glass-well h-11 w-full rounded-xl px-3.5 text-[14px] text-white outline-none transition-colors placeholder:text-white/25";
 
 /** The email-and-password card used by the login and the invite pages. */
 export default function AuthCard({ title, submitLabel, newPassword = false, note, onSubmit, children }: Props) {
@@ -43,7 +43,7 @@ export default function AuthCard({ title, submitLabel, newPassword = false, note
         <p className="text-center text-[13px] font-semibold uppercase tracking-[0.5em] text-white/80">{APP_NAME}</p>
         <h1 className="mt-3 text-center text-2xl font-medium tracking-tight text-white">{title}</h1>
         {note && <p className="mt-3 text-center text-[13px] text-white/45">{note}</p>}
-        <form onSubmit={submit} className="mt-8 space-y-3">
+        <form onSubmit={submit} className="glass mt-8 space-y-3 rounded-[24px] p-5">
           <input
             type="email" required autoComplete="email" placeholder="Email" value={email}
             onChange={(e) => setEmail(e.target.value)} className={field}
@@ -59,10 +59,10 @@ export default function AuthCard({ title, submitLabel, newPassword = false, note
               onChange={(e) => setAgain(e.target.value)} className={field}
             />
           )}
-          {error && <p className="rounded-md border border-red-400/30 bg-red-950/40 px-3 py-2 text-[13px] text-red-200">{error}</p>}
+          {error && <p className="rounded-xl border border-red-400/30 bg-red-950/40 px-3 py-2 text-[13px] text-red-200">{error}</p>}
           <button
             type="submit" disabled={busy}
-            className="h-11 w-full rounded-lg bg-amber-300 text-[14px] font-medium text-black shadow-[0_0_40px_rgba(252,211,77,0.2)] transition-opacity disabled:opacity-40"
+            className="h-11 w-full accent-button rounded-full text-[14px] font-medium transition-opacity disabled:opacity-40"
           >
             {busy ? "One moment…" : submitLabel}
           </button>

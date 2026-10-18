@@ -39,7 +39,7 @@ export default function ResultPanel({ runId, deliverable, images, seats, siteVer
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}
       transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-      className="absolute inset-x-3 bottom-3 top-14 z-40 flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0b0b0f]/95 shadow-2xl backdrop-blur md:inset-x-auto md:left-1/2 md:w-[720px] md:-translate-x-1/2"
+      className="absolute inset-x-3 bottom-3 top-14 z-40 flex flex-col overflow-hidden glass-thick rounded-[22px] md:inset-x-auto md:left-1/2 md:w-[720px] md:-translate-x-1/2"
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-white/[0.07] px-5 py-3">
         <span className="text-[10px] uppercase tracking-[0.3em] text-amber-200/70">Result</span>
@@ -55,12 +55,12 @@ export default function ResultPanel({ runId, deliverable, images, seats, siteVer
           </span>
         )}
         <div className="ml-auto flex items-center gap-2">
-          <button onClick={copy} className="rounded-md border border-white/10 px-2.5 py-1 text-[12px] text-white/70 hover:border-white/30">
+          <button onClick={copy} className="glass-button rounded-full px-2.5 py-1 text-[12px] text-white/70">
             {copied ? "Copied" : "Copy"}
           </button>
           <a
             href={`/api/runs/${runId}/files/${deliverable.path}`}
-            className="rounded-md border border-white/10 px-2.5 py-1 text-[12px] text-white/70 hover:border-white/30"
+            className="glass-button rounded-full px-2.5 py-1 text-[12px] text-white/70"
           >
             Download
           </a>

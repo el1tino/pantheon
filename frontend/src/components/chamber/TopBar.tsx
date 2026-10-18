@@ -54,7 +54,7 @@ export default function TopBar({ goal, mission, phases, phase, round, maxRounds,
   const ratio = cap > 0 ? spent / cap : 0;
   const meterColour = ratio >= 1 ? "#f87171" : ratio >= 0.8 - 1e-9 ? "#F5A524" : "rgba(255,255,255,0.75)";
   return (
-    <header className="relative z-30 flex h-14 shrink-0 items-center gap-6 border-b border-white/[0.06] bg-black/30 px-4 backdrop-blur md:px-6">
+    <header className="glass relative z-30 mx-2 mt-2 flex h-14 shrink-0 items-center gap-6 rounded-2xl px-4 md:mx-3 md:mt-3 md:px-5">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <Link href="/" className="shrink-0 text-[13px] font-semibold tracking-[0.18em] text-white/80 uppercase hover:text-white">
           {APP_NAME}

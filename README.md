@@ -80,7 +80,7 @@ Leave it on **Auto** and the moderator reads your goal, picks the mission and sa
 
 <p align="center"><img src="docs/milestone-7-phone.png" width="260" alt="A review on a phone"><br><sub>It works on phones too: the transcript becomes a bottom sheet.</sub></p>
 
-<sub>These screenshots were taken with the built-in practice council, so the replies are scripted.</sub>
+<sub>These screenshots were taken with the built-in practice council, so the replies are scripted. Model logos are trademarks of their owners, shown only to identify each model; no affiliation or endorsement is implied. The logo files come from <a href="https://github.com/lobehub/lobe-icons">Lobe Icons</a> (MIT).</sub>
 
 ## Quick start
 
@@ -149,7 +149,7 @@ docker compose up -d --build
 <details>
 <summary><b>The Chamber</b>: what you're looking at</summary>
 
-- **Arc of seats:** each model is a letter in its own colour. A seat dims when idle, shimmers while thinking, and grows with a caption bubble while speaking. A seat whose provider failed turns grey.
+- **Arc of seats:** each model is its provider's logo on a glass disc that glows in the seat's colour, with its seat letter beside it. A seat dims when idle, shimmers while thinking, and grows with a caption bubble while speaking. A seat whose provider failed turns grey.
 - **Lines between seats:** white for a proposal, green for agreement, flickering red for a challenge, dotted for a question. Pairs that keep arguing or agreeing build up red or green haze. Hover a line to see the message it carried.
 - **Project core:** every file a seat writes sends a pulse into the core, and the counters show lines added and removed. Click the core for the live diff feed.
 - **Top bar:** the mission's phase rail and the cost meter.

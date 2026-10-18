@@ -1,5 +1,6 @@
 """Milestone 7: accounts, invites, sessions, run access and demo mode."""
 
+import gzip
 import json
 import time
 from datetime import timedelta
@@ -210,3 +211,26 @@ def test_a_demo_never_replaces_a_real_run(app_client, env):
         s.commit()
         assert demo.import_demos(s) == []
         assert s.get(Run, "r2").goal == "Mine"
+
+
+def test_a_changed_demo_is_imported_again(app_client):
+    from app import demo
+    from app.db import Event
+
+    with Session(get_engine()) as s:
+        s.add(Run(id="r3", goal="Demo", status="done", phase="done"))
+        s.add(Event(run_id="r3", seq=1, type="phase_changed", payload_json=json.dumps({"seats": [{"letter": "A"}]})))
+        s.commit()
+        folder = demo.export_demo(s, "r3", "seats")
+        assert demo.import_demos(s) == ["demo-seats"]
+        # The recording gains seat logos: the next start replaces the imported copy.
+        path = folder / "events.json.gz"
+        with gzip.open(path, "rt") as f:
+            events = json.load(f)
+        events[0]["payload"]["seats"][0]["logo"] = "claude"
+        with gzip.open(path, "wt") as f:
+            json.dump(events, f)
+        assert demo.import_demos(s) == ["demo-seats"]
+        first = s.exec(select(Event).where(Event.run_id == "demo-seats", Event.seq == 1)).one()
+        assert json.loads(first.payload_json)["seats"][0]["logo"] == "claude"
+        assert demo.import_demos(s) == []

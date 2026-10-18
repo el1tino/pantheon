@@ -19,7 +19,7 @@ export default function DiffFeed({ diffs, seats, onClose }: Props) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 16 }}
       transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-      className="absolute inset-x-4 bottom-4 top-[46%] z-40 flex flex-col overflow-hidden rounded-xl border border-white/10 bg-[#0b0b0f]/95 shadow-2xl backdrop-blur md:inset-x-auto md:left-1/2 md:w-[640px] md:-translate-x-1/2"
+      className="absolute inset-x-4 bottom-4 top-[46%] z-40 flex flex-col overflow-hidden glass-thick rounded-[22px] md:inset-x-auto md:left-1/2 md:w-[640px] md:-translate-x-1/2"
     >
       <div className="flex items-center justify-between border-b border-white/[0.07] px-4 py-2.5">
         <span className="text-[11px] uppercase tracking-[0.25em] text-white/50">Live diff feed</span>

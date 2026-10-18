@@ -448,7 +448,7 @@ export default function EffectsLayer({
     <div ref={hostRef} className="pointer-events-none absolute inset-0 z-20">
       {hover && (
         <div
-          className="absolute z-30 max-w-xs whitespace-pre-line rounded-md border border-white/10 bg-black/80 px-3 py-2 text-xs leading-relaxed text-white/85 shadow-xl backdrop-blur"
+          className="absolute z-30 max-w-xs whitespace-pre-line glass-chip rounded-xl px-3 py-2 text-xs leading-relaxed text-white/85"
           style={{ left: Math.min(hover.x + 14, layout.width - 260), top: hover.y + 14 }}
         >
           {hover.label}

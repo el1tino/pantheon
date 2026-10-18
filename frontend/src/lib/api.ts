@@ -32,6 +32,7 @@ export type SeatOption = {
   name: string;
   provider: string;
   colour: string;
+  logo?: string;
   model_id: string;
 };
 

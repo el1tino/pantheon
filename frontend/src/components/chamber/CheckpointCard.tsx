@@ -40,12 +40,12 @@ export default function CheckpointCard({ checkpoint, seats, siteVersion, onAnswe
   };
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-[2px]">
+    <div className="glass-scrim absolute inset-0 z-50 flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, y: 28, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className={`flex max-h-full flex-col rounded-2xl border border-amber-200/20 bg-[#0d0c10]/95 shadow-2xl ${
+        className={`glass-thick flex max-h-full flex-col rounded-[22px] !border-amber-200/15 ${
           preview || gallery.length ? "h-[min(860px,96%)] w-[min(1100px,96vw)]" : "w-[min(760px,96vw)]"
         }`}
         style={{ boxShadow: "0 0 80px rgba(253, 230, 138, 0.08)" }}
@@ -95,7 +95,7 @@ export default function CheckpointCard({ checkpoint, seats, siteVersion, onAnswe
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.15 + i * 0.08 }}
-                  className="group relative rounded-xl border border-white/10 bg-white/[0.025] p-4 text-left transition-colors hover:border-white/30 hover:bg-white/[0.05] disabled:opacity-50"
+                  className="group relative rounded-xl border border-white/10 bg-white/[0.025] p-4 text-left transition-colors hover:bg-white/[0.05] disabled:opacity-50"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
@@ -118,14 +118,14 @@ export default function CheckpointCard({ checkpoint, seats, siteVersion, onAnswe
           ) : gallery.length > 0 ? (
             <div className="space-y-5">
               <Gallery images={gallery} seats={seats} version={siteVersion} />
-              <div className="rounded-xl border border-white/10 bg-black/30 p-4 text-[13.5px] text-white/80">
+              <div className="glass-well rounded-xl p-4 text-[13.5px] text-white/80">
                 <Markdown text={checkpoint.kind === "review" ? checkpoint.content : ""} />
               </div>
             </div>
           ) : preview && view === "site" ? (
             <SitePreview version={siteVersion} className="min-h-[50vh]" />
           ) : (
-            <div className="rounded-xl border border-white/10 bg-black/30 p-4 text-[13.5px] text-white/80">
+            <div className="glass-well rounded-xl p-4 text-[13.5px] text-white/80">
               <Markdown text={checkpoint.content} />
             </div>
           )}
@@ -140,7 +140,7 @@ export default function CheckpointCard({ checkpoint, seats, siteVersion, onAnswe
                 <button
                   disabled={busy}
                   onClick={() => answer({ action: "another_round" })}
-                  className="rounded-md border border-white/15 px-3 py-2 text-[13px] text-white/75 hover:border-white/35 disabled:opacity-40"
+                  className="glass-button rounded-full px-3 py-2 text-[13px] text-white/75 disabled:opacity-40"
                 >
                   None of these: another round
                 </button>
@@ -154,14 +154,14 @@ export default function CheckpointCard({ checkpoint, seats, siteVersion, onAnswe
                 onChange={(e) => setNote(e.target.value)}
                 rows={3}
                 placeholder="What should change?"
-                className="w-full resize-none rounded-lg border border-white/15 bg-white/[0.04] p-3 text-[13px] text-white outline-none focus:border-white/35"
+                className="glass-well w-full resize-none rounded-xl p-3 text-[13px] text-white outline-none"
               />
               <div className="flex justify-end gap-2">
                 <button onClick={() => setChanging(false)} className="px-3 py-2 text-[13px] text-white/50 hover:text-white">Back</button>
                 <button
                   disabled={busy || !note.trim()}
                   onClick={() => answer({ action: "changes", note: note.trim() })}
-                  className="rounded-md bg-white/90 px-4 py-2 text-[13px] font-medium text-black disabled:opacity-40"
+                  className="accent-button rounded-full px-4 py-2 text-[13px] font-medium disabled:opacity-40"
                 >
                   Send to the council
                 </button>
@@ -172,14 +172,14 @@ export default function CheckpointCard({ checkpoint, seats, siteVersion, onAnswe
               <button
                 disabled={busy}
                 onClick={() => setChanging(true)}
-                className="rounded-md border border-white/15 px-4 py-2 text-[13px] text-white/80 hover:border-white/35 disabled:opacity-40"
+                className="glass-button rounded-full px-4 py-2 text-[13px] text-white/80 disabled:opacity-40"
               >
                 Request changes
               </button>
               <button
                 disabled={busy}
                 onClick={() => answer({ action: "accept" })}
-                className="rounded-md bg-amber-300 px-4 py-2 text-[13px] font-medium text-black disabled:opacity-40"
+                className="accent-button rounded-full px-4 py-2 text-[13px] font-medium disabled:opacity-40"
               >
                 Accept
               </button>

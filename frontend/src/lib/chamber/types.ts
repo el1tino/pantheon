@@ -6,6 +6,7 @@ export type SeatInfo = {
   letter: string;
   name: string;
   colour: string;
+  logo?: string; // provider logo in /logos/, set in config/seats.yaml; older runs have none
   role: string | null; // assumed role, voted on by the council; none until then
   model_id: string;
 };

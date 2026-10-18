@@ -133,7 +133,7 @@ export default function ChamberView({ runId, mode = "live" }: { runId: string; m
 
   const transcript = (
     <>
-      <div className="flex h-11 shrink-0 items-center gap-1 border-b border-white/[0.06] px-3">
+      <div className="flex h-12 shrink-0 items-center gap-1 border-b border-white/[0.06] px-3">
         {([
           ["transcript", "Transcript", null],
           ["board", "Board", Object.values(state.tasks).filter((t) => t.kind !== "workstream").length],
@@ -235,12 +235,12 @@ export default function ChamberView({ runId, mode = "live" }: { runId: string; m
           )}
 
           {(state.status === "failed" || state.error || actionError) && (
-            <div className="absolute left-1/2 top-4 z-40 -translate-x-1/2 rounded-md border border-red-400/30 bg-red-950/60 px-3 py-1.5 text-[12px] text-red-200">
+            <div className="glass-chip absolute left-1/2 top-4 z-40 -translate-x-1/2 rounded-full !border-red-400/30 px-3 py-1.5 text-[12px] text-red-200">
               {actionError ?? state.error ?? "The run failed."}
             </div>
           )}
           {state.status === "stopped" && (
-            <div className="absolute left-1/2 top-4 z-40 -translate-x-1/2 rounded-md border border-white/15 bg-black/60 px-3 py-1.5 text-[12px] text-white/70">
+            <div className="absolute left-1/2 top-4 z-40 -translate-x-1/2 glass-chip rounded-full px-3 py-1.5 text-[12px] text-white/70">
               The run was stopped.
             </div>
           )}
@@ -248,7 +248,7 @@ export default function ChamberView({ runId, mode = "live" }: { runId: string; m
           {!drawerOpen && !clean && (
             <button
               onClick={() => setDrawerOpen(true)}
-              className="absolute right-3 top-3 z-40 hidden rounded-md border border-white/10 bg-black/50 px-2.5 py-1 text-[12px] text-white/60 hover:text-white md:block"
+              className="absolute right-3 top-3 z-40 hidden glass-chip rounded-full px-2.5 py-1 text-[12px] text-white/60 hover:text-white md:block"
             >
               {"⟨"} Transcript
             </button>
@@ -256,19 +256,19 @@ export default function ChamberView({ runId, mode = "live" }: { runId: string; m
           {finished && !replaying && state.caughtUp && (
             <Link
               href={`/replay/${runId}`}
-              className="absolute bottom-4 left-4 z-40 rounded-full border border-white/15 bg-black/60 px-4 py-1.5 text-[12px] text-white/75 hover:border-white/35 hover:text-white"
+              className="absolute bottom-4 left-4 z-40 glass-chip rounded-full px-4 py-1.5 text-[12px] text-white/75 hover:text-white"
             >
               Replay
             </Link>
           )}
           {replaying && (
-            <span className={`absolute left-4 top-3 z-40 rounded-full border border-white/10 bg-black/50 px-2.5 py-0.5 text-[10.5px] uppercase tracking-[0.2em] text-white/50 ${clean ? "hidden" : ""}`}>
+            <span className={`absolute left-4 top-3 z-40 glass-chip rounded-full px-2.5 py-0.5 text-[10.5px] uppercase tracking-[0.2em] text-white/50 ${clean ? "hidden" : ""}`}>
               Replay
             </span>
           )}
           <button
             onClick={() => setSheetOpen(true)}
-            className={`${clean ? "hidden " : ""}absolute bottom-3 left-1/2 z-40 -translate-x-1/2 rounded-full border border-white/10 bg-black/60 px-4 py-1.5 text-[12px] text-white/70 md:hidden`}
+            className={`${clean ? "hidden " : ""}absolute bottom-3 left-1/2 z-40 -translate-x-1/2 glass-chip rounded-full px-4 py-1.5 text-[12px] text-white/70 md:hidden`}
           >
             Transcript · {state.messages.length}
           </button>
@@ -283,7 +283,7 @@ export default function ChamberView({ runId, mode = "live" }: { runId: string; m
                 setPanel(null);
                 setResultOpen(true);
               }}
-              className="absolute bottom-4 right-4 z-40 rounded-full border border-amber-200/30 bg-black/60 px-4 py-1.5 text-[12px] text-amber-100/90 shadow-[0_0_24px_rgba(253,230,138,0.12)] hover:border-amber-200/60"
+              className="absolute bottom-4 right-4 z-40 glass-chip rounded-full !border-amber-200/30 px-4 py-1.5 text-[12px] text-amber-100/90 hover:!border-amber-200/60"
             >
               View result · {state.deliverable.title}
             </button>
@@ -309,7 +309,7 @@ export default function ChamberView({ runId, mode = "live" }: { runId: string; m
           </AnimatePresence>
 
           {state.checkpoint && !canChange && (
-            <div className="absolute left-1/2 top-4 z-[60] -translate-x-1/2 rounded-full border border-amber-200/30 bg-black/70 px-3 py-1 text-[11.5px] text-amber-100/85">
+            <div className="absolute left-1/2 top-4 z-[60] -translate-x-1/2 glass-chip rounded-full !border-amber-200/30 px-3 py-1 text-[11.5px] text-amber-100/85">
               {readOnlyNote}
             </div>
           )}
@@ -354,8 +354,8 @@ export default function ChamberView({ runId, mode = "live" }: { runId: string; m
 
         {/* Desktop drawer */}
         <aside
-          className={`relative z-30 hidden shrink-0 flex-col border-l border-white/[0.06] bg-black/35 backdrop-blur transition-[width] duration-500 ease-out md:flex ${
-            showDrawer ? "w-[380px] xl:w-[420px]" : "w-0 overflow-hidden border-l-0"
+          className={`glass relative z-30 my-3 hidden shrink-0 flex-col overflow-hidden rounded-2xl transition-[width,margin] duration-500 ease-out md:flex ${
+            showDrawer ? "mr-3 w-[380px] xl:w-[420px]" : "mr-0 w-0 !border-0"
           }`}
         >
           {showDrawer && transcript}
@@ -363,8 +363,8 @@ export default function ChamberView({ runId, mode = "live" }: { runId: string; m
 
         {/* Mobile bottom sheet */}
         <aside
-          className={`fixed inset-x-0 bottom-16 z-40 flex h-[62dvh] flex-col rounded-t-2xl border-t border-white/10 bg-[#0a0a0d]/95 backdrop-blur transition-transform duration-500 ease-out md:hidden ${
-            sheetOpen ? "translate-y-0" : "translate-y-[calc(100%+4rem)]"
+          className={`glass-thick fixed inset-x-2 bottom-[4.75rem] z-40 flex h-[62dvh] flex-col overflow-hidden rounded-3xl transition-transform duration-500 ease-out md:hidden ${
+            sheetOpen ? "translate-y-0" : "translate-y-[calc(100%+6rem)]"
           }`}
         >
           {transcript}
@@ -375,7 +375,7 @@ export default function ChamberView({ runId, mode = "live" }: { runId: string; m
         <ReplayBar replay={replay} clean={clean} onClean={() => setClean((c) => !c)} />
       ) : !canChange ? (
         info && (
-          <footer className="relative z-30 flex h-12 shrink-0 items-center justify-center border-t border-white/[0.06] bg-black/30 px-4 text-[12px] text-white/45">
+          <footer className="glass relative z-30 mx-2 mb-2 flex h-12 shrink-0 items-center justify-center rounded-2xl px-4 text-[12px] text-white/45 md:mx-3 md:mb-3">
             {info.public ? "A recorded demo. Watching only." : "Watching only."}
           </footer>
         )
