@@ -316,7 +316,7 @@ export default function ChamberView({ runId, mode = "live" }: { runId: string; m
           <div className="contents" inert={!canChange}>
           {(state.checkpoint?.kind === "pick" || state.checkpoint?.kind === "review") && (
             <CheckpointCard
-              key={`${state.checkpoint.kind}-${state.lastSeq}`}
+              key={`${state.checkpoint.kind}-${state.checkpointSeq}`}
               checkpoint={state.checkpoint}
               seats={state.seats}
               siteVersion={state.siteVersion}
@@ -327,7 +327,7 @@ export default function ChamberView({ runId, mode = "live" }: { runId: string; m
           )}
           {state.checkpoint?.kind === "plan" && (
             <PlanCard
-              key={`plan-${state.lastSeq}`}
+              key={`plan-${state.checkpointSeq}`}
               checkpoint={state.checkpoint}
               seats={state.seats}
               onApprove={async (assignments) => {

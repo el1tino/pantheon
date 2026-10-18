@@ -94,15 +94,28 @@ function DemoScreen() {
 }
 
 export default function ConveneForm() {
-  const [gate, setGate] = useState<"loading" | "demo" | User>("loading");
+  const [gate, setGate] = useState<"loading" | "demo" | "offline" | User>("loading");
   useEffect(() => {
     publicConfig()
       .then((cfg) => (cfg.demo_mode ? setGate("demo") : me().then(setGate)))
       .catch((e) => {
         if (e instanceof HttpError && e.status === 401) goToLogin();
+        else setGate("offline");
       });
   }, []);
   if (gate === "loading") return <main className="chamber-stage min-h-dvh" />;
+  if (gate === "offline") {
+    return (
+      <main className="chamber-stage flex min-h-dvh flex-col items-center justify-center px-4 text-center">
+        <p className="text-[13px] font-semibold uppercase tracking-[0.5em] text-white/80">{APP_NAME}</p>
+        <p className="mt-4 text-[15px] text-white/75">Can&apos;t reach the council.</p>
+        <p className="mt-2 text-[13px] text-white/40">Is the backend running? Locally it listens on port 8000.</p>
+        <button onClick={() => window.location.reload()} className="mt-6 text-[13px] text-amber-100/80 hover:text-amber-100">
+          Try again
+        </button>
+      </main>
+    );
+  }
   if (gate === "demo") return <DemoScreen />;
   return <Convene user={gate} />;
 }

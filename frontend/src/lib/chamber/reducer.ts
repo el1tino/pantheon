@@ -33,6 +33,7 @@ export type ChamberState = {
   core: { plus: number; minus: number };
   diffs: Diff[];
   checkpoint: Checkpoint | null;
+  checkpointSeq: number; // the event that opened the current checkpoint, so its card keeps its state
   decision: { id: string; decidedBy: string } | null;
   tally: Record<string, number>;
   scores: Record<string, number[]>; // option id -> anonymous 1-5 scores
@@ -64,6 +65,7 @@ export const initialState: ChamberState = {
   core: { plus: 0, minus: 0 },
   diffs: [],
   checkpoint: null,
+  checkpointSeq: 0,
   decision: null,
   tally: {},
   scores: {},
@@ -255,6 +257,7 @@ export function reduce(state: ChamberState, ev: ChamberEvent): ChamberState {
       s.cost = { spent: p.spent_usd, cap: p.cap_usd, ratio: p.ratio, warning: p.warning };
       return s;
     case "checkpoint_opened":
+      s.checkpointSeq = ev.seq;
       if (p.kind === "budget") {
         s.checkpoint = { kind: "budget", spent: p.spent_usd, cap: p.cap_usd, estimate: p.next_call_estimate_usd };
         s.status = "paused";

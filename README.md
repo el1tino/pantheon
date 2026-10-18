@@ -4,12 +4,14 @@ A council of AI models from different providers takes on anything people use AI 
 
 ## Status
 
+All seven milestones in the spec are built.
+
 - Milestone 1 (Skeleton) is done: FastAPI, Next.js and SQLite, with one OpenRouter call going end to end.
 - Milestone 2 (Debate engine) is done: seats debate a goal in the terminal with round limits, a majority vote, a moderator summary and a hard budget cap, and the transcript is saved.
 - Milestone 3 (The Chamber, live) is done: convene a council in the browser and watch the debate play out live.
 - Milestone 4 (Missions, voting and checkpoints) is done: Ask, Write, Plan, Decide and Learn run end to end, and Launch runs to its idea checkpoint. Options are scored anonymously, you pick at checkpoints and review the result, and you can address the council at any time.
-- Milestone 6 (Images and integration) is done: image consultants and the Create mission; Build and Launch now end with an Integrate phase that runs the site in a locked-down Docker container, sends errors back to their owners, makes sure the site uses its own logo and checks name, colours and prices for consistency. Claims of success without proof are marked unverified.
 - Milestone 5 (Roles and building) is done: Build produces a multi-file website, and Launch now goes through Research, Roles and Build to a site plus business documents. Workstream leads are voted in, you approve the task plan, builders work in parallel with reviews, and the Board and the Vault show it all, including a live preview of the site.
+- Milestone 6 (Images and integration) is done: image consultants and the Create mission; Build and Launch now end with an Integrate phase that runs the site in a locked-down Docker container, sends errors back to their owners, makes sure the site uses its own logo and checks name, colours and prices for consistency. Claims of success without proof are marked unverified.
 - Milestone 7 (Replay, Demo mode and deployment) is done: login with invite-only accounts, Replay with a scrubber at 1× to 8×, a recorded demo that plays with no API calls, and a Docker Compose deployment behind Caddy with automatic HTTPS (see [`docs/DEPLOY.md`](docs/DEPLOY.md)).
 
 No seat has a fixed role. Later in a run, each model puts itself forward for the work it's best at and the council votes on who does what.
@@ -151,7 +153,7 @@ cd frontend && npm run dev
 
 - **Arc of seats:** each seat's letter in its colour on a pedestal. A seat dims when idle, shimmers while thinking, and grows with a caption bubble while speaking. A seat whose provider failed turns grey on a dashed pedestal.
 - **Lines between seats:** white for a proposal, green for agreement, flickering red for a challenge, dotted for a question. A comet travels in the speaker's colour, and the line fades to a faint trail. Pairs that argue or agree build red or green haze between them. Hover a line to see the message it carried.
-- **Project core:** every file a seat writes sends a pulse down its arrow into the core. The odometer counters show lines added and removed. Click the core for the live diff feed. In this milestone the files are each seat's proposal and notes in `projects/<run_id>/`.
+- **Project core:** every file a seat writes sends a pulse down its arrow into the core. The odometer counters show lines added and removed. Click the core for the live diff feed. The files are whatever the run writes in `projects/<run_id>/`: notes, documents and the site.
 - **Top bar:** the phase rail and the cost meter, which turns amber at 80%. At the cap, the run pauses and a card asks you to raise it or stop.
 - **Transcript drawer:** streams every message. It collapses for demos, and on phones it becomes a bottom sheet.
 - **Pause and stop** take effect between turns. Reduced-motion settings swap the effects for simple fades.

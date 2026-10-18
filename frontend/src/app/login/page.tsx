@@ -1,10 +1,10 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import AuthCard from "@/components/auth/AuthCard";
 import DemoList from "@/components/DemoList";
-import { login } from "@/lib/api";
+import { login, me } from "@/lib/api";
 
 function safeNext(next: string | null) {
   // Only same-site paths, so the login can't be used to bounce people elsewhere.
@@ -13,6 +13,12 @@ function safeNext(next: string | null) {
 
 function Login() {
   const params = useSearchParams();
+  // Already logged in: go straight on.
+  useEffect(() => {
+    me()
+      .then(() => window.location.replace(safeNext(params.get("next"))))
+      .catch(() => {});
+  }, [params]);
   return (
     <AuthCard
       title="Log in"
