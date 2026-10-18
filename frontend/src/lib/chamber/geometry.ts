@@ -7,7 +7,8 @@ export type SeatSpot = {
   x: number;
   y: number; // centre of the letter
   size: number; // letter font size in px
-  top: Point; // where conversation arcs attach
+  top: Point; // top of the seat's disc: ripples and the bench line start here
+  disc: { x: number; y: number; r: number }; // the glass disc the logo sits on (see Seat.tsx)
   arrowStart: Point; // where the build arrow leaves, under the labels
   arrowEnd: Point; // where it lands on the core
   align: "start" | "center" | "end"; // which way the caption bubble opens, to stay on screen
@@ -47,6 +48,7 @@ export function computeLayout(width: number, height: number, letters: string[]):
       y,
       size,
       top: { x, y: y - size * 0.62 },
+      disc: { x, y: y - size * 0.06, r: size * 0.54 },
       arrowStart: { x, y: y + size * 0.55 + labelDepth },
       arrowEnd: { x: landing, y: core.y - core.h / 2 - 6 },
       align: (x < width * 0.3 ? "start" : x > width * 0.7 ? "end" : "center") as SeatSpot["align"],
@@ -75,14 +77,36 @@ export function sample(fn: (t: number) => Point, steps = 48): Point[] {
 }
 
 /** Arc of light between two seats, bowing upwards over the bench. */
+/** Where a line leaves (or meets) a disc: on its upper rim, leaning towards the other seat. */
+function rimPoint(s: SeatSpot, towardX: number, lean = 0.62): Point {
+  const side = towardX === s.x ? 0 : towardX > s.x ? 1 : -1;
+  const r = s.disc.r + 3;
+  return { x: s.disc.x + side * Math.sin(lean) * r, y: s.disc.y - Math.cos(lean) * r };
+}
+
+/** Arc of light between two seats, bowing upwards over the bench, rim to rim. */
 export function talkCurve(a: SeatSpot, b: SeatSpot, compact: boolean): Point[] {
-  const p0 = a.top;
-  const p1 = b.top;
+  const p0 = rimPoint(a, b.x);
+  const p1 = rimPoint(b, a.x);
   const dist = Math.hypot(p1.x - p0.x, p1.y - p0.y);
   const lift = compact ? 18 + dist * 0.12 : 30 + dist * 0.32;
-  const c = { x: (p0.x + p1.x) / 2, y: Math.min(p0.y, p1.y) - lift };
-  return sample((t) => quadPoint(p0, c, p1, t));
+  // Two control points give a rounder, more even arc than a single quadratic one.
+  const top = Math.min(p0.y, p1.y) - lift;
+  const c1 = { x: lerpX(p0.x, p1.x, 0.18), y: top };
+  const c2 = { x: lerpX(p0.x, p1.x, 0.82), y: top };
+  return sample((t) => cubicPoint(p0, c1, c2, p1, t), 64);
 }
+
+/** A vote: a quick, low arc from voter to the voted-for seat. */
+export function voteCurve(a: SeatSpot, b: SeatSpot): Point[] {
+  const p0 = rimPoint(a, b.x, 0.35);
+  const p1 = rimPoint(b, a.x, 0.35);
+  const lift = 16 + Math.hypot(p1.x - p0.x, p1.y - p0.y) * 0.14;
+  const c = { x: (p0.x + p1.x) / 2, y: Math.min(p0.y, p1.y) - lift };
+  return sample((t) => quadPoint(p0, c, p1, t), 40);
+}
+
+const lerpX = (a: number, b: number, t: number) => a + (b - a) * t;
 
 /** Build arrow from under a seat's labels into the core. */
 export function buildCurve(s: SeatSpot): Point[] {

@@ -13,6 +13,7 @@ import {
   buildCurve,
   distanceToPolyline,
   talkCurve,
+  voteCurve,
 } from "@/lib/chamber/geometry";
 import { ChamberState, SeatView } from "@/lib/chamber/reducer";
 import { CLIENT, ChamberEvent, MODERATOR, STANCE_COLOUR, STANCE_LABEL } from "@/lib/chamber/types";
@@ -41,8 +42,14 @@ type Props = {
 
 // ---------------------------------------------------------------- drawing helpers
 
-const ease = (t: number) => 1 - (1 - Math.min(Math.max(t, 0), 1)) ** 3;
-const lerp = (a: number, b: number, t: number) => a + (b - a) * Math.min(Math.max(t, 0), 1);
+const clamp01 = (t: number) => Math.min(Math.max(t, 0), 1);
+const ease = (t: number) => 1 - (1 - clamp01(t)) ** 3;
+/** Slow in, slow out: motion that starts and lands softly. */
+const easeInOut = (t: number) => {
+  const x = clamp01(t);
+  return x < 0.5 ? 4 * x ** 3 : 1 - (-2 * x + 2) ** 3 / 2;
+};
+const lerp = (a: number, b: number, t: number) => a + (b - a) * clamp01(t);
 
 function path(g: Graphics, pts: Point[], from: number, to: number) {
   const n = pts.length - 1;
@@ -54,57 +61,93 @@ function path(g: Graphics, pts: Point[], from: number, to: number) {
   return true;
 }
 
-function glow(g: Graphics, pts: Point[], from: number, to: number, color: string, alpha: number, width = 1.6, strength = 1) {
-  if (alpha <= 0.002) return;
-  const passes: [number, number][] = [
-    [width * 7, 0.05 * strength],
-    [width * 3.2, 0.14 * strength],
-    [width, 0.95],
-  ];
-  for (const [w, a] of passes) {
-    if (path(g, pts, from, to)) g.stroke({ width: w, color, alpha: alpha * a, cap: "round", join: "round" });
-  }
-}
-
-function dots(g: Graphics, pts: Point[], to: number, color: string, alpha: number) {
-  const n = Math.floor(to * (pts.length - 1));
-  for (let i = 0; i <= n; i += 2) {
-    g.circle(pts[i].x, pts[i].y, 4.5).fill({ color, alpha: alpha * 0.12 });
-    g.circle(pts[i].x, pts[i].y, 1.7).fill({ color, alpha: alpha * 0.95 });
-  }
-}
-
 function pointAt(pts: Point[], f: number): Point {
   const n = pts.length - 1;
-  const x = Math.min(Math.max(f, 0), 1) * n;
+  const x = clamp01(f) * n;
   const i = Math.min(Math.floor(x), n - 1);
   const t = x - i;
   return { x: lerp(pts[i].x, pts[i + 1].x, t), y: lerp(pts[i].y, pts[i + 1].y, t) };
 }
 
-function comet(g: Graphics, pts: Point[], f: number, color: string, alpha = 1) {
-  if (f <= 0) return;
-  glow(g, pts, Math.max(0, f - 0.16), f, color, 0.55 * alpha, 2.2);
-  const head = pointAt(pts, f);
-  g.circle(head.x, head.y, 11).fill({ color, alpha: 0.16 * alpha });
-  g.circle(head.x, head.y, 5).fill({ color, alpha: 0.45 * alpha });
-  g.circle(head.x, head.y, 2.4).fill({ color: "#ffffff", alpha: 0.95 * alpha });
+/** The stretch of a polyline between fractions `from` and `to`, with exact (interpolated) ends,
+ * so a line grows smoothly instead of in sample-sized steps. */
+function slice(pts: Point[], from: number, to: number): Point[] {
+  if (to - from < 1e-4) return [];
+  const n = pts.length - 1;
+  const out = [pointAt(pts, from)];
+  for (let i = Math.floor(from * n) + 1; i < to * n; i++) out.push(pts[i]);
+  out.push(pointAt(pts, to));
+  return out;
+}
+
+/**
+ * A line of light whose brightness varies along it (`alphaAt(u)`, u = 0 at the start of `pts`,
+ * 1 at the end): a wide soft halo, a mid glow and a fine bright core. The line is split into a
+ * few runs of equal brightness; on the additive layer their butt ends meet without a seam.
+ */
+function ribbon(g: Graphics, pts: Point[], color: string, alphaAt: (u: number) => number, width = 1.5, halo = 1, runs = 14) {
+  if (pts.length < 2) return;
+  const n = pts.length - 1;
+  const per = Math.max(1, Math.ceil(n / runs));
+  const passes: [number, number][] = [
+    [width * 7, 0.04 * halo],
+    [width * 2.8, 0.12 * halo],
+    [width, 0.92],
+  ];
+  for (const [w, k] of passes) {
+    for (let i = 0; i < n; i += per) {
+      const j = Math.min(n, i + per);
+      const a = alphaAt((i + j) / 2 / n) * k;
+      if (a < 0.003) continue;
+      g.moveTo(pts[i].x, pts[i].y);
+      for (let m = i + 1; m <= j; m++) g.lineTo(pts[m].x, pts[m].y);
+      g.stroke({ width: w, color, alpha: a, cap: "butt", join: "round" });
+    }
+  }
+}
+
+/** Evenly spaced dots, for questions. */
+function dotted(g: Graphics, pts: Point[], color: string, alphaAt: (u: number) => number) {
+  const n = pts.length - 1;
+  for (let i = 0; i <= n; i += 3) {
+    const a = alphaAt(i / Math.max(n, 1));
+    if (a < 0.003) continue;
+    g.circle(pts[i].x, pts[i].y, 3.6).fill({ color, alpha: a * 0.1 });
+    g.circle(pts[i].x, pts[i].y, 1.4).fill({ color, alpha: a * 0.9 });
+  }
+}
+
+/** The bright head of a travelling line. */
+function comet(g: Graphics, at: Point, color: string, alpha = 1) {
+  if (alpha <= 0.01) return;
+  g.circle(at.x, at.y, 9).fill({ color, alpha: 0.12 * alpha });
+  g.circle(at.x, at.y, 4.2).fill({ color, alpha: 0.38 * alpha });
+  g.circle(at.x, at.y, 1.9).fill({ color: "#ffffff", alpha: 0.95 * alpha });
+}
+
+/** A soft ring that settles around a disc when a line lands on it. */
+function landing(g: Graphics, disc: { x: number; y: number; r: number }, color: string, k: number) {
+  if (k <= 0 || k >= 1) return;
+  const fade = 1 - ease(k);
+  g.circle(disc.x, disc.y, disc.r + 2 + 9 * ease(k)).stroke({ width: 1.2, color, alpha: 0.4 * fade });
+  g.circle(disc.x, disc.y, disc.r + 6).fill({ color, alpha: 0.06 * fade });
 }
 
 // ---------------------------------------------------------------- effects
 
-// Lines draw in, the comet travels, then the line fades to a faint trail and goes.
-const DRAW_S = 0.55;
-const COMET_S = 0.95;
-const FADE_FROM = 1.1;
-const FADE_TO = 3.6; // "lines fade over about 3 seconds"
-const TRAIL_ALPHA = 0.09;
-const TRAIL_END = 16;
-const GONE = 19;
+// A line travels from speaker to listener with its comet at the tip, rests, then draws itself
+// into the listener and leaves a faint trail that fades out.
+const TRAVEL = 0.95;
+const HOLD = 0.55;
+const RETRACT = 1.25;
+const TRAIL_ALPHA = 0.08;
+const TRAIL_END = 14;
+const GONE = 17;
 
-function talkFx(pts: Point[], stance: string, speakerColour: string, label: string, reduced: boolean): Fx {
+function talkFx(pts: Point[], target: SeatSpot, stance: string, speakerColour: string, label: string, reduced: boolean): Fx {
   const colour = STANCE_COLOUR[stance] ?? STANCE_COLOUR.propose;
-  const strength = stance === "agree" ? 1.8 : 1;
+  const halo = stance === "agree" ? 1.6 : stance === "challenge" ? 1.3 : 1;
+  const arrive = TRAVEL + HOLD;
   let alphaNow = 1;
   return {
     g: new Graphics(),
@@ -112,26 +155,36 @@ function talkFx(pts: Point[], stance: string, speakerColour: string, label: stri
     hover: { pts, label, alpha: () => alphaNow },
     draw(g, t) {
       if (t > GONE) return false;
-      let a =
-        t < FADE_FROM ? 1 : t < FADE_TO ? lerp(1, TRAIL_ALPHA, (t - FADE_FROM) / (FADE_TO - FADE_FROM))
-          : t < TRAIL_END ? TRAIL_ALPHA : lerp(TRAIL_ALPHA, 0, (t - TRAIL_END) / (GONE - TRAIL_END));
-      if (reduced) a *= Math.min(1, t / 0.4);
-      if (stance === "challenge" && t < FADE_TO && !reduced) {
-        a *= 0.62 + 0.38 * Math.abs(Math.sin(t * 31) * Math.sin(t * 17 + 1));
+      // The faint trail that stays once the line has landed.
+      const trail = t < arrive ? 0
+        : t < TRAIL_END ? TRAIL_ALPHA * ease((t - arrive) / RETRACT)
+          : lerp(TRAIL_ALPHA, 0, (t - TRAIL_END) / (GONE - TRAIL_END));
+      const draw = stance === "question" ? dotted : (gg: Graphics, p: Point[], c: string, f: (u: number) => number) => ribbon(gg, p, c, f, 1.5, halo);
+
+      if (reduced) {
+        const a = t < 0.4 ? t / 0.4 : t < arrive ? 1 : Math.max(trail, lerp(1, 0, (t - arrive) / RETRACT));
+        alphaNow = a;
+        draw(g, pts, colour, () => a);
+        return true;
       }
-      alphaNow = a;
-      const drawn = reduced ? 1 : ease(t / DRAW_S);
-      if (stance === "question") dots(g, pts, drawn, colour, a);
-      else glow(g, pts, 0, drawn, colour, a, 1.5, strength);
-      if (!reduced && t < COMET_S + 0.3) {
-        const f = ease(t / COMET_S);
-        comet(g, pts, f, speakerColour, t < COMET_S ? 1 : lerp(1, 0, (t - COMET_S) / 0.3));
+
+      const head = easeInOut(t / TRAVEL);
+      const tail = t < arrive ? 0 : easeInOut((t - arrive) / RETRACT);
+      // A challenge breathes while it is live; nothing flickers.
+      const pulse = stance === "challenge" && t < arrive ? 0.86 + 0.14 * Math.sin(t * 9) : 1;
+      // While travelling, the line brightens towards its head; once landed it evens out.
+      const settle = clamp01((t - TRAVEL) / HOLD);
+      const along = (u: number) => pulse * lerp(0.18 + 0.82 * u ** 1.6, 1, settle);
+
+      if (trail > 0.002 && tail > 0) draw(g, pts, colour, () => trail);
+      if (tail < 1) {
+        const part = slice(pts, tail, head);
+        draw(g, part, colour, (u) => along(lerp(tail, head, u) / Math.max(head, 1e-3)));
       }
-      if (!reduced && t > COMET_S && t < COMET_S + 0.5) {
-        const end = pts[pts.length - 1];
-        const k = (t - COMET_S) / 0.5;
-        g.circle(end.x, end.y, 6 + 18 * k).stroke({ width: 1.5, color: speakerColour, alpha: 0.6 * (1 - k) });
-      }
+      alphaNow = tail < 1 ? 1 : trail;
+
+      if (t < TRAVEL + 0.15) comet(g, pointAt(pts, head), speakerColour, t < TRAVEL ? 1 : 1 - (t - TRAVEL) / 0.15);
+      landing(g, target.disc, speakerColour, (t - TRAVEL) / 0.8);
       return true;
     },
   };
@@ -144,38 +197,41 @@ function rippleFx(centre: Point, colour: string, maxR: number, reduced: boolean)
     draw(g, t) {
       if (reduced) {
         if (t > 1.2) return false;
-        g.circle(centre.x, centre.y, 46).fill({ color: colour, alpha: 0.16 * (1 - t / 1.2) });
+        g.circle(centre.x, centre.y, 46).fill({ color: colour, alpha: 0.14 * (1 - t / 1.2) });
         return true;
       }
-      if (t > 2.1) return false;
-      for (const delay of [0, 0.28]) {
-        const k = (t - delay) / 1.8;
+      if (t > 1.9) return false;
+      // Two soft waves: a broad faint band with a fine bright edge, easing out as they spread.
+      for (const delay of [0, 0.22]) {
+        const k = (t - delay) / 1.6;
         if (k <= 0 || k >= 1) continue;
-        const r = ease(k) * maxR;
-        g.circle(centre.x, centre.y, r).stroke({ width: 10, color: colour, alpha: 0.035 * (1 - k) });
-        g.circle(centre.x, centre.y, r).stroke({ width: 1.2, color: colour, alpha: 0.32 * (1 - k) });
+        const r = 8 + ease(k) * maxR;
+        const fade = (1 - k) ** 2;
+        g.circle(centre.x, centre.y, r).stroke({ width: 26, color: colour, alpha: 0.025 * fade });
+        g.circle(centre.x, centre.y, r).stroke({ width: 7, color: colour, alpha: 0.06 * fade });
+        g.circle(centre.x, centre.y, r).stroke({ width: 1, color: colour, alpha: 0.38 * fade });
       }
       return true;
     },
   };
 }
 
-function beamFx(from: Point, to: Point, colour: string, label: string, reduced: boolean): Fx {
-  const pts = [from, to];
+function beamFx(pts: Point[], target: SeatSpot, colour: string, label: string, reduced: boolean): Fx {
+  const travel = 0.45;
   let alphaNow = 1;
   return {
     g: new Graphics(),
     age: 0,
     hover: { pts, label, alpha: () => alphaNow },
     draw(g, t) {
-      if (t > 1.6) return false;
-      const head = reduced ? 1 : ease(t / 0.32);
-      alphaNow = t < 0.5 ? 1 : lerp(1, 0, (t - 0.5) / 1.1);
-      const line = [from, { x: lerp(from.x, to.x, head), y: lerp(from.y, to.y, head) }];
-      glow(g, line, 0, 1, colour, alphaNow, 2, 1.6);
-      if (!reduced && t > 0.3 && t < 0.9) {
-        const k = (t - 0.3) / 0.6;
-        g.circle(to.x, to.y, 8 + 22 * k).fill({ color: colour, alpha: 0.25 * (1 - k) });
+      if (t > 1.7) return false;
+      const head = reduced ? 1 : easeInOut(t / travel);
+      alphaNow = t < 0.6 ? 1 : lerp(1, 0, (t - 0.6) / 1.1);
+      const part = slice(pts, 0, head);
+      ribbon(g, part, colour, (u) => alphaNow * (0.25 + 0.75 * u), 1.6, 1.4, 10);
+      if (!reduced) {
+        if (t < travel + 0.1) comet(g, pointAt(pts, head), colour, t < travel ? 1 : 1 - (t - travel) / 0.1);
+        landing(g, target.disc, colour, (t - travel) / 0.7);
       }
       return true;
     },
@@ -218,20 +274,21 @@ function sparksFx(at: Point, added: number, removed: number): Fx {
 
 function pulseFx(pts: Point[], colour: string, onArrive: () => void, reduced: boolean): Fx {
   let arrived = false;
+  const travel = reduced ? 0.01 : 0.9;
   return {
     g: new Graphics(),
     age: 0,
     draw(g, t) {
-      const travel = reduced ? 0.01 : 0.9;
       if (!arrived && t >= travel) {
         arrived = true;
         onArrive();
       }
-      if (reduced) return false;
-      if (t > travel + 0.25) return false;
-      const f = ease(t / travel);
-      glow(g, pts, 0, Math.min(1, f), colour, 0.22 * (t < travel ? 1 : 1 - (t - travel) / 0.25), 1.4);
-      if (t < travel) comet(g, pts, f, colour);
+      if (reduced || t > travel + 0.2) return false;
+      const head = easeInOut(t / travel);
+      const tail = Math.max(0, head - 0.3);
+      const fade = t < travel ? 1 : 1 - (t - travel) / 0.2;
+      ribbon(g, slice(pts, tail, head), colour, (u) => fade * 0.75 * u ** 1.4, 1.4, 1.2, 8);
+      if (t < travel) comet(g, pointAt(pts, head), colour);
       return true;
     },
   };
@@ -245,7 +302,7 @@ function benchFlashFx(spots: SeatSpot[], colour: string, reduced: boolean): Fx {
     draw(g, t) {
       if (t > 2.6 || pts.length < 2) return false;
       const a = t < 0.5 ? (reduced ? t / 0.5 : ease(t / 0.5)) : lerp(1, 0, (t - 0.5) / 2.1);
-      glow(g, pts, 0, 1, colour, a * 0.9, 3, 2.2);
+      ribbon(g, pts, colour, () => a * 0.9, 2.4, 2, 6);
       for (const p of pts) g.circle(p.x, p.y + 30, 54).fill({ color: colour, alpha: 0.07 * a });
       return true;
     },
@@ -343,16 +400,18 @@ export default function EffectsLayer({
       const spot = spots.get(seat.letter);
       if (!spot) continue;
       const pts = buildCurve(spot);
-      const alpha = seat.status === "absent" ? 0.06 : 0.17;
-      if (path(g, pts, 0, 1)) g.stroke({ width: 1.2, color: seat.colour, alpha, cap: "round" });
-      const end = pts[pts.length - 1];
-      const prev = pts[pts.length - 4];
-      const ang = Math.atan2(end.y - prev.y, end.x - prev.x);
-      for (const side of [-1, 1]) {
-        g.moveTo(end.x, end.y);
-        g.lineTo(end.x - 7 * Math.cos(ang + side * 0.45), end.y - 7 * Math.sin(ang + side * 0.45));
+      const strength = seat.status === "absent" ? 0.35 : 1;
+      const n = pts.length - 1;
+      for (let i = 0; i < n; i += 4) {
+        const j = Math.min(n, i + 4);
+        const u = (i + j) / 2 / n;
+        g.moveTo(pts[i].x, pts[i].y);
+        for (let m = i + 1; m <= j; m++) g.lineTo(pts[m].x, pts[m].y);
+        g.stroke({ width: 1.1, color: seat.colour, alpha: strength * (0.03 + 0.17 * u ** 1.3), cap: "butt" });
       }
-      g.stroke({ width: 1.2, color: seat.colour, alpha: alpha * 1.3, cap: "round" });
+      const end = pts[n];
+      g.circle(end.x, end.y, 4).fill({ color: seat.colour, alpha: 0.05 * strength });
+      g.circle(end.x, end.y, 1.6).fill({ color: seat.colour, alpha: 0.35 * strength });
     }
   }, [ready, layout, seats, heat]);
 
@@ -389,16 +448,16 @@ export default function EffectsLayer({
         const msg = state.messages.find((m) => m.id === p.message_id);
         const snippet = msg ? msg.content.slice(0, 140) + (msg.content.length > 140 ? "…" : "") : "";
         if (p.to === "all") {
-          add(rippleFx(from.top, colourOf(p.from), Math.max(lay.width, lay.height) * 0.75, reduced));
+          add(rippleFx(from.disc, colourOf(p.from), Math.min(lay.width * 0.42, 520), reduced));
           return;
         }
         const to = spot(p.to);
         if (!to) return;
         const label = `${nameOf(p.from)} ${(STANCE_LABEL[p.stance] ?? p.stance).toLowerCase()} → ${nameOf(p.to)}\n${snippet}`;
         if (p.stance === "vote") {
-          add(beamFx(from.top, to.top, colourOf(p.from), label, reduced));
+          add(beamFx(voteCurve(from, to), to, colourOf(p.from), label, reduced));
         } else {
-          add(talkFx(talkCurve(from, to, lay.compact), p.stance, colourOf(p.from), label, reduced));
+          add(talkFx(talkCurve(from, to, lay.compact), to, p.stance, colourOf(p.from), label, reduced));
         }
       } else if (ev.type === "diff_applied") {
         const s = spot(p.seat);
