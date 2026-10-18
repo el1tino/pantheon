@@ -1,11 +1,12 @@
 # CLAUDE.md
 
-Pantheon is a web app where chat models from many providers sit as a council, debate a user's goal, split the work by strength and build the result while the user watches the live "Chamber" UI. A run can be any everyday AI job, not just a business launch: each run has a **mission** (Ask, Write, Plan, Decide, Learn, Build, Create, Launch) that sets its phases, checkpoints and deliverable. **The full spec is `PANTHEON_SPEC.md`. Read it before you start any milestone.**
+Pantheon is a web app where chat models from many providers sit as an assembly, debate a user's goal, split the work by strength and build the result while the user watches the live "Chamber" UI. A run can be any everyday AI job, not just a business launch: each run has a **mission** (Ask, Write, Plan, Decide, Learn, Build, Create, Launch) that sets its phases, checkpoints and deliverable. **The full spec is `PANTHEON_SPEC.md`. Read it before you start any milestone.**
 
 ## Working rules
 
 - **One milestone at a time.** Build milestones in order (see below). Plan each one and get the user's approval before writing code. When it runs, give the exact commands to run it, commit, and stop. Don't start the next milestone until the user says so.
 - **The app name lives in one config constant.** "Pantheon" is a placeholder. Backend: `backend/app/config.py` (`APP_NAME`). Frontend: one shared constant that reads it or mirrors it. Never hard-code the name anywhere else.
+- **The group name lives in one config constant too.** The models are called "the assembly" on screen and in their instructions. Backend: `GROUP_NAME` in `backend/app/config.py`. Frontend: `GROUP_NAME` (with `A_GROUP`, `THE_GROUP`) in `frontend/src/lib/app.ts`. Don't hard-code the word.
 - **Never put API keys in frontend code.** Keys live only in the backend `.env`. The browser never calls a model directly.
 - Use cheap models and a low budget cap for development runs.
 

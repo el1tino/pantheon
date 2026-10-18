@@ -11,7 +11,7 @@ backend ──host Docker socket──▶ one locked-down runner container per s
 ## What you need
 
 - A VPS with 2 GB of RAM or more and Docker Engine with the Compose plugin. Hetzner, DigitalOcean, Linode and Vultr all work. A $5–10 a month server is enough.
-- A domain or subdomain with an `A` record pointing at the server's IP, for example `council.example.com`.
+- A domain or subdomain with an `A` record pointing at the server's IP, for example `assembly.example.com`.
 - Ports 80 and 443 open. Caddy needs both to get the certificate.
 - An OpenRouter key with a spending limit set on openrouter.ai.
 
@@ -35,7 +35,7 @@ Set at least:
 
 | Setting | Value |
 |---|---|
-| `DOMAIN` | your domain, e.g. `council.example.com` (no `https://`) |
+| `DOMAIN` | your domain, e.g. `assembly.example.com` (no `https://`) |
 | `DOCKER_GID` | the number from `getent group docker` |
 | `OPENROUTER_API_KEY` | your key |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | the owner account, created on first start. The password needs 10+ characters. |

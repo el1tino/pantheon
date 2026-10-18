@@ -2,7 +2,7 @@
 
 A two-sided marketplace that takes a small cut of each match.
 
-## What the council built
+## What the assembly built
 
 | Files | Task | Built by | Reviewed by |
 |---|---|---|---|

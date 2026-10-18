@@ -114,7 +114,7 @@ function without(live: Record<string, string>, seat: string): Record<string, str
   return next;
 }
 
-// A seat's badge shows the role the council voted it into: the workstreams it leads, or
+// A seat's badge shows the role the assembly voted it into: the workstreams it leads, or
 // in lighter missions the parts it writes.
 function badges(seats: SeatView[], tasks: Record<string, TaskView>): SeatView[] {
   const all = Object.values(tasks);

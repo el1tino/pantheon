@@ -11,7 +11,7 @@ type Props = {
   onApprove: (assignments: Record<string, { owner: string; reviewer: string }>) => Promise<void>;
 };
 
-/** Checkpoint 2: the council's task plan. Approve it, swapping any owner or reviewer first. */
+/** Checkpoint 2: the assembly's task plan. Approve it, swapping any owner or reviewer first. */
 export default function PlanCard({ checkpoint, seats, onApprove }: Props) {
   const [assign, setAssign] = useState(() =>
     Object.fromEntries(checkpoint.tasks.map((t) => [t.id, { owner: t.owner ?? "", reviewer: t.reviewer ?? "" }])),

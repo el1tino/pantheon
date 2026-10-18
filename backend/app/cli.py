@@ -17,7 +17,7 @@ from rich.prompt import Prompt
 from rich.text import Text
 from sqlmodel import Session
 
-from app.config import APP_NAME, get_settings
+from app.config import APP_NAME, GROUP_NAME, get_settings
 from app.db.session import get_engine, init_db
 from app.gateway import openrouter
 from app.orchestrator.budget import Budget, BudgetExceeded, usd
@@ -143,7 +143,7 @@ async def _debate(args: argparse.Namespace) -> int:
         )
         console.print(Panel(
             Text.assemble(
-                (f"{APP_NAME} council", "bold"), f"  run {debate.run_id}\n\n",
+                (f"{APP_NAME} {GROUP_NAME}", "bold"), f"  run {debate.run_id}\n\n",
                 ("Goal: ", "bold"), args.goal, "\n",
                 *[t for s in seats for t in ((f"\n{s.letter} {s.name}", f"bold {s.colour}"),
                                              f"  {s.provider}  ", (s.model_id, "dim"))],
@@ -169,7 +169,7 @@ def main(argv: list[str] | None = None) -> int:
     settings = get_settings()
     parser = argparse.ArgumentParser(prog="app.cli", description=f"{APP_NAME} command line")
     sub = parser.add_subparsers(dest="command", required=True)
-    d = sub.add_parser("debate", help="Run a council debate in the terminal")
+    d = sub.add_parser("debate", help=f"Run a {GROUP_NAME} debate in the terminal")
     d.add_argument("goal")
     d.add_argument("--seats", default="A,B,C,D", help="Seat letters, comma separated")
     d.add_argument("--rounds", type=int, default=settings.max_rounds)

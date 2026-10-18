@@ -7,6 +7,7 @@ import { SeatView } from "@/lib/chamber/reducer";
 import { Checkpoint } from "@/lib/chamber/types";
 import Gallery from "./Gallery";
 import SitePreview from "./SitePreview";
+import { GROUP_NAME, THE_GROUP } from "@/lib/app";
 
 type Props = {
   checkpoint: Extract<Checkpoint, { kind: "pick" | "review" }>;
@@ -15,7 +16,7 @@ type Props = {
   onAnswer: (answer: { action: string; option?: string; note?: string }) => Promise<void>;
 };
 
-/** The council stops and the client decides: pick an option, or review the result. */
+/** The assembly stops and the client decides: pick an option, or review the result. */
 export default function CheckpointCard({ checkpoint, seats, siteVersion, onAnswer }: Props) {
   const gallery = checkpoint.kind === "review" && !checkpoint.preview ? checkpoint.images ?? [] : [];
   const check = checkpoint.kind === "review" ? checkpoint.check : null;
@@ -53,12 +54,12 @@ export default function CheckpointCard({ checkpoint, seats, siteVersion, onAnswe
         <div className="border-b border-white/[0.06] px-6 pb-4 pt-5">
           <div className="mb-1 text-[10px] uppercase tracking-[0.3em] text-amber-200/70">Checkpoint · your call</div>
           <h2 className="text-lg font-medium text-white">
-            {checkpoint.kind === "pick" ? "The council's top options" : `Review: ${checkpoint.title}`}
+            {checkpoint.kind === "pick" ? `The ${GROUP_NAME}'s top options` : `Review: ${checkpoint.title}`}
           </h2>
           <p className="mt-1 text-[12.5px] text-white/45">
             {checkpoint.kind === "pick"
               ? "Each option was scored 1 to 5 by the other members, without knowing who wrote it."
-              : "Accept it, or tell the council what to change and it will revise."}
+              : `Accept it, or tell ${THE_GROUP} what to change and it will revise.`}
           </p>
           {check && (
             <p className={`mt-2 text-[12px] ${check.status === "passed" ? "text-emerald-300/90" : check.status === "failed" ? "text-red-300/90" : "text-amber-200/90"}`}>
@@ -163,7 +164,7 @@ export default function CheckpointCard({ checkpoint, seats, siteVersion, onAnswe
                   onClick={() => answer({ action: "changes", note: note.trim() })}
                   className="accent-button rounded-full px-4 py-2 text-[13px] font-medium disabled:opacity-40"
                 >
-                  Send to the council
+                  Send to {THE_GROUP}
                 </button>
               </div>
             </div>

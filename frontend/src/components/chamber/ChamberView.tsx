@@ -22,6 +22,7 @@ import ReplayBar from "./ReplayBar";
 import ResultPanel from "./ResultPanel";
 import Transcript from "./Transcript";
 import Vault from "./Vault";
+import { THE_GROUP } from "@/lib/app";
 
 // PixiJS needs the browser.
 const EffectsLayer = dynamic(() => import("./EffectsLayer"), { ssr: false });
@@ -227,10 +228,10 @@ export default function ChamberView({ runId, mode = "live" }: { runId: string; m
                 : connection === "closed"
                   ? replaying
                     ? `Can't load this replay: ${replay.error}`
-                    : "Can't reach the council. Is the backend running on port 8000?"
+                    : `Can't reach ${THE_GROUP}. Is the backend running on port 8000?`
                   : replaying
                     ? "Loading the replay…"
-                    : "Convening the council…"}
+                    : `Convening ${THE_GROUP}…`}
             </div>
           )}
 

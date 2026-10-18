@@ -18,7 +18,7 @@ from sqlmodel import Session, select
 
 from app import auth, demo, runs
 from app.auth import current_user, optional_user, owner_user
-from app.config import APP_NAME, get_settings
+from app.config import APP_NAME, GROUP_NAME, get_settings
 from app.db import Event, Message, Run, User, get_session, init_db
 from app.db.session import get_engine
 from app.events import bus
@@ -153,7 +153,7 @@ async def test_call(body: TestCallIn, user: User = Depends(current_user), sessio
     try:
         result = await openrouter.chat(
             [
-                {"role": "system", "content": f"You are a helpful member of the {APP_NAME} council. Be brief."},
+                {"role": "system", "content": f"You are a helpful member of the {APP_NAME} {GROUP_NAME}. Be brief."},
                 {"role": "user", "content": body.prompt},
             ],
             max_tokens=settings.test_call_max_tokens,
@@ -373,7 +373,7 @@ class MessageIn(BaseModel):
 
 @app.post("/api/runs/{run_id}/message")
 def send_message(run_id: str, body: MessageIn, _: Run = Depends(changeable_run)) -> dict:
-    """The user addresses the council. Seats see it as a direct instruction from the client."""
+    """The user addresses the assembly. Seats see it as a direct instruction from the client."""
     active = runs.get_active(run_id)
     if not active:
         raise HTTPException(status_code=409, detail="Run is not in progress")

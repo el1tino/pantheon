@@ -83,7 +83,7 @@ REPLY_FORMAT_HELP = """Reply with ONLY one JSON object, no other text:
 {
   "stance": "propose | challenge | agree | vote | report | question",
   "reply_to": "message id like \\"m3\\", or null",
-  "content": "what you say to the council (under 120 words)",
+  "content": "what you say to the assembly (under 120 words)",
   "proposal": {"title": "short title", "summary": "one or two sentences"} or null,
   "votes": [{"target": "message id", "score": 1}] or null
 }"""

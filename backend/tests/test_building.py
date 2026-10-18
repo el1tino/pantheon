@@ -248,7 +248,7 @@ def test_scripted_reply_writes_files_the_parser_accepts():
 
     user = ('GOAL: g\n\nCONTEXT:\nChosen direction: Bakery: Bread.\n\nSTEP: BUILD TASK t1. Task t1 "x": y. '
             "Write: site/index.html, site/styles.css.\nJSON: ...")
-    r, files = parse_build_reply(reply("You are A, seat A on the x council", user))
+    r, files = parse_build_reply(reply("You are A, seat A on the x assembly", user))
     assert [f.path for f in files] == ["site/index.html", "site/styles.css"]
 
 

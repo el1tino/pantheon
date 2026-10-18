@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { SeatView } from "@/lib/chamber/reducer";
 import { TaskView } from "@/lib/chamber/types";
 import SeatLogo from "@/components/SeatLogo";
+import { THE_GROUP } from "@/lib/app";
 
 type Props = { tasks: Record<string, TaskView>; seats: SeatView[]; onClose: () => void };
 
@@ -45,7 +46,7 @@ export default function Board({ tasks, seats, onClose }: Props) {
         <button onClick={onClose} className="ml-auto text-[12px] text-white/45 hover:text-white">Close</button>
       </div>
       {cards.length === 0 ? (
-        <p className="m-auto text-[13px] text-white/35">No tasks yet. They appear once the council has split the work.</p>
+        <p className="m-auto text-[13px] text-white/35">No tasks yet. They appear once {THE_GROUP} has split the work.</p>
       ) : (
         <div className="grid min-h-0 flex-1 grid-cols-2 gap-3 overflow-auto p-4 md:grid-cols-3 xl:grid-cols-6">
           {COLUMNS.map((col) => {

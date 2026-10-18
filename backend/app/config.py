@@ -6,6 +6,9 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 APP_NAME = "Pantheon"
+# What the group of models is called, on screen and in the models' instructions. Mirrored in
+# frontend/src/lib/app.ts.
+GROUP_NAME = "assembly"
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 

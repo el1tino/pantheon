@@ -6,6 +6,7 @@ import Markdown from "@/components/Markdown";
 import SeatLogo from "@/components/SeatLogo";
 import { SeatView } from "@/lib/chamber/reducer";
 import { CLIENT, MODERATOR, Message, STANCE_COLOUR, STANCE_LABEL } from "@/lib/chamber/types";
+import { GROUP_NAME } from "@/lib/app";
 
 type Props = {
   seats: SeatView[];
@@ -91,7 +92,7 @@ export default function Transcript({ seats, messages, live, thinking, tally, sco
   return (
     <div ref={scroller} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
       {messages.length === 0 && Object.keys(live).length === 0 && (
-        <p className="pt-10 text-center text-[13px] text-white/30">The council is taking its seats…</p>
+        <p className="pt-10 text-center text-[13px] text-white/30">The {GROUP_NAME} is taking its seats…</p>
       )}
       {messages.map((m) => {
         if (m.seat === CLIENT) {
