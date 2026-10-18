@@ -5,7 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { APP_NAME } from "@/lib/app";
-import { MissionOption, RunSummary, SeatOption, createRun, listMissions, listRuns, listSeats } from "@/lib/api";
+import DemoList from "@/components/DemoList";
+import {
+  HttpError, MissionOption, RunSummary, SeatOption, User, createInvite, createRun, goToLogin, listMissions, listRuns,
+  listSeats, logout, me, publicConfig,
+} from "@/lib/api";
 
 const DEFAULT_SEATS = ["A", "B", "C", "D"];
 
@@ -19,7 +23,91 @@ const EXAMPLES: Record<string, string> = {
   launch: "Come up with a business idea we could launch in a month, and name it.",
 };
 
+/** Who's logged in, a log-out link and, for the owner, invite links. */
+function AccountBar({ user }: { user: User }) {
+  const [link, setLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const invite = async () => {
+    setError(null);
+    try {
+      const { path } = await createInvite();
+      setLink(window.location.origin + path);
+      setCopied(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+  return (
+    <div className="mb-8 flex flex-col items-end gap-2 text-[12px] text-white/45">
+      <div className="flex items-center gap-4">
+        <span className="truncate">{user.email}</span>
+        {user.is_owner && (
+          <button onClick={invite} className="text-amber-100/80 hover:text-amber-100">Invite someone</button>
+        )}
+        <button
+          onClick={async () => {
+            await logout().catch(() => {});
+            window.location.assign("/login");
+          }}
+          className="hover:text-white"
+        >
+          Log out
+        </button>
+      </div>
+      {link && (
+        <div className="flex w-full max-w-md items-center gap-2 rounded-lg border border-amber-200/20 bg-amber-200/[0.04] p-2">
+          <input readOnly value={link} onFocus={(e) => e.target.select()} className="min-w-0 flex-1 bg-transparent font-mono text-[11px] text-white/75 outline-none" />
+          <button
+            onClick={async () => {
+              await navigator.clipboard?.writeText(link).catch(() => {});
+              setCopied(true);
+            }}
+            className="shrink-0 rounded-md bg-white/[0.08] px-2.5 py-1 text-white/80 hover:bg-white/[0.14]"
+          >
+            {copied ? "Copied" : "Copy"}
+          </button>
+        </div>
+      )}
+      {link && <span className="text-[11px] text-white/30">One person, one use, expires in a week.</span>}
+      {error && <span className="text-red-300">{error}</span>}
+    </div>
+  );
+}
+
+/** DEMO_MODE: a public link that only plays the recorded demo. */
+function DemoScreen() {
+  return (
+    <main className="chamber-stage flex min-h-dvh flex-col items-center px-4 py-16 md:py-24">
+      <div className="w-full max-w-md">
+        <p className="text-center text-[13px] font-semibold uppercase tracking-[0.5em] text-white/80">{APP_NAME}</p>
+        <p className="mt-3 text-center text-2xl font-medium tracking-tight text-white">A council of AI models, at work</p>
+        <p className="mt-3 text-center text-[13px] leading-relaxed text-white/45">
+          Models from different providers debate a goal, vote on who does what and build the result. This is a
+          recorded run made with the built-in practice council, so its replies are scripted. New runs are
+          switched off here.
+        </p>
+        <DemoList className="mt-10" />
+      </div>
+    </main>
+  );
+}
+
 export default function ConveneForm() {
+  const [gate, setGate] = useState<"loading" | "demo" | User>("loading");
+  useEffect(() => {
+    publicConfig()
+      .then((cfg) => (cfg.demo_mode ? setGate("demo") : me().then(setGate)))
+      .catch((e) => {
+        if (e instanceof HttpError && e.status === 401) goToLogin();
+      });
+  }, []);
+  if (gate === "loading") return <main className="chamber-stage min-h-dvh" />;
+  if (gate === "demo") return <DemoScreen />;
+  return <Convene user={gate} />;
+}
+
+function Convene({ user }: { user: User }) {
   const router = useRouter();
   const [seats, setSeats] = useState<SeatOption[]>([]);
   const [runs, setRuns] = useState<RunSummary[]>([]);
@@ -60,6 +148,7 @@ export default function ConveneForm() {
   return (
     <main className="chamber-stage min-h-dvh px-5 py-12 md:py-20">
       <div className="mx-auto max-w-3xl">
+        <AccountBar user={user} />
         <motion.h1
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -191,6 +280,8 @@ export default function ConveneForm() {
             {busy ? "Convening…" : "Convene the council"}
           </button>
         </form>
+
+        <DemoList className="mt-14" />
 
         {runs.length > 0 && (
           <section className="mt-14">

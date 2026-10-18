@@ -6,6 +6,7 @@ from app.config import get_settings
 from app.db import Message, Run
 from app.db.session import get_engine
 from app.gateway import openrouter
+from tests.conftest import login
 
 
 @pytest.fixture
@@ -19,6 +20,7 @@ def client(tmp_path, monkeypatch):
     from app.main import app
 
     with TestClient(app) as c:
+        login(c)
         yield c
     get_settings.cache_clear()
 
@@ -27,8 +29,8 @@ def test_health_never_exposes_key(client, monkeypatch):
     monkeypatch.setenv("OPENROUTER_API_KEY", "sk-secret")
     get_settings.cache_clear()
     body = client.get("/api/health").json()
-    assert body["openrouter_key_set"] is True
-    assert "sk-secret" not in str(body)
+    assert body["status"] == "ok"
+    assert "sk-secret" not in str(body) and "openrouter" not in str(body).lower()
 
 
 def test_test_call_saves_run_and_message(client, monkeypatch):

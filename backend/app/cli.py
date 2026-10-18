@@ -176,10 +176,57 @@ def main(argv: list[str] | None = None) -> int:
     d.add_argument("--budget", type=float, default=settings.default_budget_usd, help="Cap in USD")
     d.add_argument("--model-override", help="Use this model for every seat (cheap test runs)")
     d.add_argument("--moderator-model", default=settings.moderator_model)
+    u = sub.add_parser("create-user", help="Create an account (asks for the password)")
+    u.add_argument("email")
+    u.add_argument("--owner", action="store_true", help="Make this the owner account (can invite others)")
+    e = sub.add_parser("export-demo", help="Save a finished run as a demo under demo/<slug>")
+    e.add_argument("run_id")
+    e.add_argument("slug")
     args = parser.parse_args(argv)
     if args.command == "debate":
         return asyncio.run(_debate(args))
+    if args.command == "create-user":
+        return _create_user(args.email, args.owner)
+    if args.command == "export-demo":
+        from app.demo import export_demo
+
+        init_db()
+        with Session(get_engine()) as session:
+            folder = export_demo(session, args.run_id, args.slug)
+        Console().print(f"Saved the demo to {folder}")
+        return 0
     return 2
+
+
+def _create_user(email: str, owner: bool) -> int:
+    import getpass
+
+    from fastapi import HTTPException
+    from sqlmodel import select
+
+    from app import auth
+    from app.db import User
+
+    console = Console()
+    try:
+        email = auth.normalise_email(email)
+        password = getpass.getpass("Password: ")
+        auth.check_password_rules(password)
+    except HTTPException as exc:
+        console.print(f"[red]{exc.detail}[/]")
+        return 1
+    if password != getpass.getpass("Again: "):
+        console.print("[red]The passwords don't match.[/]")
+        return 1
+    init_db()
+    with Session(get_engine()) as session:
+        if session.exec(select(User).where(User.email == email)).first():
+            console.print("[red]That email already has an account.[/]")
+            return 1
+        session.add(User(email=email, password_hash=auth.hash_password(password), is_owner=owner))
+        session.commit()
+    console.print(f"Created {'the owner account' if owner else 'an account'} for {email}.")
+    return 0
 
 
 if __name__ == "__main__":

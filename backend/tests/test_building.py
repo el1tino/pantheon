@@ -15,6 +15,7 @@ from app.gateway.openrouter import ChatResult
 from app.orchestrator import sandbox
 from app.orchestrator.budget import BudgetExceeded
 from app.orchestrator.missions import MissionRun
+from tests.conftest import login
 from tests.test_debate import PRICES, SEATS, events
 from tests.test_missions import ScriptChat, run_mission
 
@@ -267,6 +268,7 @@ def client(env, monkeypatch):
     from app.main import app
 
     with TestClient(app) as c:
+        login(c)
         monkeypatch.setattr(get_settings(), "moderator_model", "fake/mod")
         yield c
 
@@ -300,14 +302,16 @@ def test_api_plan_checkpoint_site_and_tree(client):
         client.post(f"/api/runs/{run_id}/checkpoint", json={"action": "accept"})
         _until(ws, lambda m: m["type"] == "phase_changed" and m["payload"].get("status") == "done")
 
-    page = client.get(f"/api/runs/{run_id}/site/index.html")
+    key = client.get(f"/api/runs/{run_id}").json()["site_key"]
+    page = client.get(f"/api/sites/{key}/index.html")
     assert page.status_code == 200 and page.headers["content-type"].startswith("text/html")
     csp = page.headers["content-security-policy"]
     assert "connect-src 'none'" in csp and "frame-ancestors" in csp and "default-src 'none'" in csp
-    assert client.get(f"/api/runs/{run_id}/site/").status_code == 200  # defaults to index.html
-    assert client.get(f"/api/runs/{run_id}/site/styles.css").headers["content-type"].startswith("text/css")
-    assert client.get(f"/api/runs/{run_id}/site/..%2F..%2F..%2Fetc%2Fpasswd").status_code in (400, 404)
-    assert client.get(f"/api/runs/{run_id}/site/../goal.md").status_code in (400, 404)
+    assert client.get(f"/api/sites/{key}/").status_code == 200  # defaults to index.html
+    assert client.get(f"/api/sites/{key}/styles.css").headers["content-type"].startswith("text/css")
+    assert client.get(f"/api/sites/{key}/..%2F..%2F..%2Fetc%2Fpasswd").status_code in (400, 404)
+    assert client.get(f"/api/sites/{key}/../goal.md").status_code in (400, 404)
+    assert client.get(f"/api/sites/{'x' * 24}/index.html").status_code == 404  # a wrong key finds nothing
     tree = {f["path"] for f in client.get(f"/api/runs/{run_id}/tree").json()}
     assert {"site/index.html", "site/styles.css", "site/script.js", "docs/plan.md"} <= tree
     inline = client.get(f"/api/runs/{run_id}/files/site/script.js?inline=true")
@@ -319,6 +323,9 @@ def test_site_route_never_serves_files_outside_site(client):
                                             "mission": "build"}).json()["run_id"]
     with client.websocket_connect(f"/api/runs/{run_id}/ws") as ws:
         _until(ws, lambda m: m["type"] == "checkpoint_opened")
+    key = client.get(f"/api/runs/{run_id}").json()["site_key"]
+    assert client.get(f"/api/sites/{key}/index.html").status_code in (200, 404)  # the route itself works
     # goal.md exists in the run folder, outside site/. Encoded dot-dots must not reach it.
     for raw in ["..%2Fgoal.md", "%2e%2e/goal.md", "%2e%2e%2fgoal.md"]:
-        assert client.get(f"/api/runs/{run_id}/site/{raw}").status_code in (400, 404), raw
+        r = client.get(f"/api/sites/{key}/{raw}")
+        assert r.status_code in (400, 404) and "Goal" not in r.text, raw

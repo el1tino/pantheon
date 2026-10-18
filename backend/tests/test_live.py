@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from app.gateway import openrouter
 from app.orchestrator.debate import Debate, RunControl
 from app.orchestrator.streaming import ContentStreamer
+from tests.conftest import login
 from tests.test_debate import PRICES, SEATS, FakeChat, events, propose, reply
 
 
@@ -101,6 +102,7 @@ def client(env, monkeypatch):
     from app.main import app
 
     with TestClient(app) as c:
+        login(c)
         yield c
 
 

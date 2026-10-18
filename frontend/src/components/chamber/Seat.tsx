@@ -43,7 +43,7 @@ export default function Seat({ seat, spot, compact, reducedMotion }: Props) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.3 }}
-            className="absolute bottom-full z-30 mb-3 w-max max-w-[min(280px,40vw)] rounded-lg border bg-black/75 px-3 py-1.5 text-left text-[12px] leading-snug text-white/90 shadow-lg backdrop-blur"
+            className={`absolute bottom-full z-30 mb-3 w-max max-w-[min(280px,60vw)] rounded-lg border bg-black/75 px-3 py-1.5 text-left text-[12px] leading-snug text-white/90 shadow-lg backdrop-blur ${spot.align === "start" ? "left-[-12px]" : spot.align === "end" ? "right-[-12px]" : ""}`}
             style={{ borderColor: `${colour}55`, boxShadow: `0 0 24px ${colour}22` }}
           >
             <span className="line-clamp-2">{seat.caption}</span>

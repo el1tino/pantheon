@@ -53,6 +53,16 @@ class Settings(BaseSettings):
     runner_timeout_s: float = 30.0
     runner_memory: str = "256m"
     runner_cpus: float = 1.0
+    # Login. The owner account is created on first start from these; nobody else can sign up
+    # without an invite from the owner.
+    admin_email: str = ""
+    admin_password: str = ""
+    cookie_secure: bool = False  # set true when served over HTTPS
+    session_days: int = 30
+    invite_days: int = 7
+    # Demo mode: no new runs, only the recorded demo (safe for a public link).
+    demo_mode: bool = False
+    demo_dir: Path = REPO_ROOT / "demo"
     # Used to estimate cost when OpenRouter's price list is unavailable.
     # Deliberately high so estimates err on the safe side (USD per 1M tokens).
     fallback_price_in_per_mtok: float = 5.0

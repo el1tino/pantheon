@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import Markdown from "@/components/Markdown";
 import { TreeFile, fileText, runTree, siteUrl } from "@/lib/api";
+import { useRunInfo } from "@/lib/chamber/runInfo";
 import { SeatView } from "@/lib/chamber/reducer";
 import { FileView, ImageView, MODERATOR } from "@/lib/chamber/types";
 import CheckReport from "./CheckReport";
@@ -27,7 +28,10 @@ const HIDDEN = new Set(["transcript.json"]);
 
 /** Everything the run produced: the site preview, code with line numbers, and documents. */
 export default function Vault({ runId, files, seats, siteVersion, images, onClose }: Props) {
-  const [tree, setTree] = useState<TreeFile[]>([]);
+  const { siteKey, replay } = useRunInfo();
+  const [fullTree, setTree] = useState<TreeFile[]>([]);
+  // In Replay the files on disk are the finished ones: list only those written so far.
+  const tree = useMemo(() => (replay ? fullTree.filter((f) => f.path in files) : fullTree), [replay, fullTree, files]);
   const [selected, setSelected] = useState<string | null>(null);
   const [text, setText] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
@@ -123,13 +127,13 @@ export default function Vault({ runId, files, seats, siteVersion, images, onClos
         </nav>
         <div className="min-w-0 flex-1 overflow-auto p-4">
           {!current && <p className="text-[13px] text-white/35">Nothing has been written yet.</p>}
-          {current === PREVIEW && <SitePreview runId={runId} version={siteVersion} />}
-          {current === GALLERY && <Gallery runId={runId} images={images} seats={seats} version={siteVersion} />}
+          {current === PREVIEW && <SitePreview version={siteVersion} />}
+          {current === GALLERY && <Gallery images={images} seats={seats} version={siteVersion} />}
           {current && !special && isCheck(current) && <CheckReport text={text} onOpenFile={(p) => setSelected(p)} />}
           {current && current !== GALLERY && isImage(current) && (
             <div className="checkerboard flex h-full items-center justify-center rounded-lg p-6">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={siteUrl(runId, current.replace(/^site\//, ""), siteVersion)} alt={current} className="max-h-full max-w-full" />
+              <img src={siteUrl(siteKey, current.replace(/^site\//, ""), siteVersion)} alt={current} className="max-h-full max-w-full" />
             </div>
           )}
           {current && !special && !isCheck(current) && isMd && (

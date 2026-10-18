@@ -1,17 +1,18 @@
 "use client";
 
 import { siteUrl } from "@/lib/api";
+import { useRunInfo } from "@/lib/chamber/runInfo";
 import { SeatView } from "@/lib/chamber/reducer";
 
 type Img = { path: string; kind: string; prompt: string; consultant: string; seat: string };
 
 /** Images the consultants made, with who asked for them and the prompt they got. */
-export default function Gallery({ runId, images, seats, version }: {
-  runId: string;
+export default function Gallery({ images, seats, version }: {
   images: Img[];
   seats: SeatView[];
   version: number;
 }) {
+  const { siteKey } = useRunInfo();
   const seat = (l: string) => seats.find((s) => s.letter === l);
   if (!images.length) return <p className="text-[13px] text-white/35">No images yet.</p>;
   return (
@@ -21,7 +22,7 @@ export default function Gallery({ runId, images, seats, version }: {
           <div className="checkerboard flex aspect-[4/3] items-center justify-center p-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={siteUrl(runId, img.path.replace(/^site\//, ""), version)}
+              src={siteUrl(siteKey, img.path.replace(/^site\//, ""), version)}
               alt={img.prompt}
               className="max-h-full max-w-full object-contain"
             />

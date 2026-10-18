@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Website Exchange</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <header class="nav"><span class="brand"><img src="logo.svg" alt="" class="logo">Website Exchange</span><a href="#join" class="nav-cta">Get early access</a></header>
+  <main>
+    <section class="hero">
+      <h1>Website Exchange</h1>
+      <p class="lead">A two-sided marketplace that takes a small cut of each match.</p>
+      <button id="cta" class="button">Join the waitlist</button>
+    </section>
+    <section class="grid">
+      <article class="card reveal"><h3>Made for you</h3><p>Built around one clear job, done well.</p></article>
+      <article class="card reveal"><h3>Fast to start</h3><p>No setup. Open it and go.</p></article>
+      <article class="card reveal"><h3>Fair pricing</h3><p>Free to try, simple when you grow.</p></article>
+    </section>
+    <section class="quote reveal"><blockquote>"Exactly what I needed, without the fuss."</blockquote><p>— an early user</p></section>
+    <section id="join" class="join reveal">
+      <h2>Be first in line</h2>
+      <form id="signup"><input type="email" placeholder="you@example.com" required><button class="button">Notify me</button></form>
+    </section>
+  </main>
+  <footer>© <span id="year"></span> Website Exchange</footer>
+  <div id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

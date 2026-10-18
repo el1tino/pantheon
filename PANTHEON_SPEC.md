@@ -178,13 +178,16 @@ Everything a run does is stored as rows in one SQLite database, so any model can
 
 | Table     | Holds                              | Key fields                                                                   |
 |-----------|------------------------------------|------------------------------------------------------------------------------|
-| runs      | One council session                | id, goal, status, phase, budget_usd, spent_usd, created_at                   |
+| runs      | One council session                | id, goal, status, phase, budget_usd, spent_usd, created_at, owner_id, public, site_key |
 | seats     | Models attending a run             | run_id, name, model_id, colour, role (assumed by vote)                       |
 | messages  | Everything said in the Chamber     | run_id, seat, phase, stance, reply_to, content, tokens, cost_usd             |
 | votes     | Scores and approvals               | run_id, phase, voter_seat, target, score                                     |
 | tasks     | The build plan                     | run_id, title, owner_seat, reviewer_seat, status, depends_on                 |
 | artifacts | Files and images produced          | run_id, task_id, path, kind, version, created_by, lines_added, lines_removed |
 | events    | Ordered log for live UI and Replay | run_id, seq, type, payload_json, at                                          |
+| users     | Accounts (invite-only)             | id, email, password_hash (Argon2), is_owner, created_at                      |
+| invites   | One-use invite links               | id, code_hash, created_by, expires_at, used_by, used_at                      |
+| login_sessions | Logged-in browsers            | token_hash (SHA-256), user_id, created_at, expires_at                        |
 
 **Agent reply format.** Every model must answer in this JSON shape, validated with Pydantic. An invalid reply is retried once with the error shown, then dropped.
 
@@ -252,7 +255,7 @@ Build in seven milestones, each ending in something that runs and can be shown. 
 
 6.  **Images and integration.** Image generation through the provider's image API, code execution in Docker, error loop back to the owner, consistency pass. Done when: a run produces a site that starts and uses its own generated logo.
 
-7.  **Replay, Demo mode and deployment.** Event replay with a scrubber, demo mode, login, deployment to a cloud host. Done when: the app is reachable from a phone and a demo run can be shown without API calls.
+7.  **Replay, Demo mode and deployment.** Event replay with a scrubber, demo mode, login, deployment to a cloud host. Done when: the app is reachable from a phone and a demo run can be shown without API calls. Login is invite-only: the owner account comes from ADMIN_EMAIL and ADMIN_PASSWORD, and the owner hands out one-use invite links. Each person sees only their own runs; recorded demos in demo/ are public and read-only. Deployment is Docker Compose on a VPS with Caddy for HTTPS (docs/DEPLOY.md).
 
 ## Starting with Claude Code
 

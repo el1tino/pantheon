@@ -10,6 +10,7 @@ export type SeatSpot = {
   top: Point; // where conversation arcs attach
   arrowStart: Point; // where the build arrow leaves, under the labels
   arrowEnd: Point; // where it lands on the core
+  align: "start" | "center" | "end"; // which way the caption bubble opens, to stay on screen
 };
 
 export type Layout = {
@@ -26,7 +27,8 @@ export function computeLayout(width: number, height: number, letters: string[]):
   const coreW = Math.min(520, Math.max(220, width * 0.38));
   const core = { x: width / 2, y: height * (compact ? 0.72 : 0.76), w: coreW, h: 14 };
 
-  const span = compact ? 0.86 : Math.min(0.8, 0.14 + 0.075 * (n - 1));
+  // On a phone every seat gets an equal slice of the width, so names and edges stay on screen.
+  const span = compact ? (n - 1) / n : Math.min(0.8, 0.14 + 0.075 * (n - 1));
   const size = compact
     ? Math.min(44, (width * 0.86) / n / 1.25)
     : Math.min(92, Math.max(40, (width * span) / n / 1.35));
@@ -47,6 +49,7 @@ export function computeLayout(width: number, height: number, letters: string[]):
       top: { x, y: y - size * 0.62 },
       arrowStart: { x, y: y + size * 0.55 + labelDepth },
       arrowEnd: { x: landing, y: core.y - core.h / 2 - 6 },
+      align: (x < width * 0.3 ? "start" : x > width * 0.7 ? "end" : "center") as SeatSpot["align"],
     };
   });
   return { width, height, compact, seats, core };

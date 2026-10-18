@@ -41,12 +41,12 @@ export default function ResultPanel({ runId, deliverable, images, seats, siteVer
       transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
       className="absolute inset-x-3 bottom-3 top-14 z-40 flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0b0b0f]/95 shadow-2xl backdrop-blur md:inset-x-auto md:left-1/2 md:w-[720px] md:-translate-x-1/2"
     >
-      <div className="flex items-center gap-3 border-b border-white/[0.07] px-5 py-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-white/[0.07] px-5 py-3">
         <span className="text-[10px] uppercase tracking-[0.3em] text-amber-200/70">Result</span>
-        <span className="truncate text-[13px] text-white/70">{deliverable.title}</span>
+        <span className="min-w-0 truncate text-[13px] text-white/70">{deliverable.title}</span>
         {lastCheck && (
           <span
-            className={`rounded-full border px-2 py-0.5 text-[10.5px] ${
+            className={`whitespace-nowrap rounded-full border px-2 py-0.5 text-[10.5px] ${
               lastCheck.status === "passed" ? "border-emerald-400/40 text-emerald-300"
                 : lastCheck.status === "failed" ? "border-red-400/40 text-red-300" : "border-amber-300/40 text-amber-200"
             }`}
@@ -70,7 +70,7 @@ export default function ResultPanel({ runId, deliverable, images, seats, siteVer
       <div className="flex-1 overflow-y-auto px-6 py-5 text-[14px] text-white/80">
         {images.length > 0 && (
           <div className="mb-6">
-            <Gallery runId={runId} images={images} seats={seats} version={siteVersion} />
+            <Gallery images={images} seats={seats} version={siteVersion} />
           </div>
         )}
         <Markdown text={deliverable.content} />

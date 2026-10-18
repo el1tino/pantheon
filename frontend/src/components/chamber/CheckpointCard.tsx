@@ -11,13 +11,12 @@ import SitePreview from "./SitePreview";
 type Props = {
   checkpoint: Extract<Checkpoint, { kind: "pick" | "review" }>;
   seats: SeatView[];
-  runId: string;
   siteVersion: number;
   onAnswer: (answer: { action: string; option?: string; note?: string }) => Promise<void>;
 };
 
 /** The council stops and the client decides: pick an option, or review the result. */
-export default function CheckpointCard({ checkpoint, seats, runId, siteVersion, onAnswer }: Props) {
+export default function CheckpointCard({ checkpoint, seats, siteVersion, onAnswer }: Props) {
   const gallery = checkpoint.kind === "review" && !checkpoint.preview ? checkpoint.images ?? [] : [];
   const check = checkpoint.kind === "review" ? checkpoint.check : null;
   const preview = checkpoint.kind === "review" ? checkpoint.preview : null;
@@ -118,13 +117,13 @@ export default function CheckpointCard({ checkpoint, seats, runId, siteVersion, 
             </div>
           ) : gallery.length > 0 ? (
             <div className="space-y-5">
-              <Gallery runId={runId} images={gallery} seats={seats} version={siteVersion} />
+              <Gallery images={gallery} seats={seats} version={siteVersion} />
               <div className="rounded-xl border border-white/10 bg-black/30 p-4 text-[13.5px] text-white/80">
                 <Markdown text={checkpoint.kind === "review" ? checkpoint.content : ""} />
               </div>
             </div>
           ) : preview && view === "site" ? (
-            <SitePreview runId={runId} version={siteVersion} className="min-h-[50vh]" />
+            <SitePreview version={siteVersion} className="min-h-[50vh]" />
           ) : (
             <div className="rounded-xl border border-white/10 bg-black/30 p-4 text-[13.5px] text-white/80">
               <Markdown text={checkpoint.content} />

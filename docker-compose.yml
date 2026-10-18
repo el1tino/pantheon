@@ -1,0 +1,62 @@
+# Production stack: Caddy (HTTPS) in front of the frontend and the backend.
+#   cp .env.example .env   # then fill in DOMAIN, keys, ADMIN_*; see docs/DEPLOY.md
+#   docker compose up -d --build
+# Caddy sends /api/* (the WebSocket too) to the backend and everything else to the frontend,
+# so the browser only ever sees one origin.
+
+services:
+  # Builds the sandbox image the backend runs site checks in, then exits.
+  runner:
+    build: backend/runner
+    image: pantheon-runner:1
+    entrypoint: ["node", "--version"]
+    restart: "no"
+    network_mode: none
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file: .env
+    environment:
+      DATABASE_URL: sqlite:////srv/pantheon/data/pantheon.db
+      # Must be the same absolute path inside and outside the container: the host's Docker
+      # daemon mounts run folders into runner containers by this path.
+      PROJECTS_DIR: /srv/pantheon/projects
+      FRONTEND_ORIGIN: https://${DOMAIN:?set DOMAIN in .env}
+      COOKIE_SECURE: "true"
+    volumes:
+      - /srv/pantheon/data:/srv/pantheon/data
+      - /srv/pantheon/projects:/srv/pantheon/projects
+      - /var/run/docker.sock:/var/run/docker.sock
+    group_add:
+      - "${DOCKER_GID:-999}" # the host's docker group, so the app user can start runners
+    depends_on:
+      runner:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [backend, frontend]
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

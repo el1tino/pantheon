@@ -1,0 +1,12 @@
+{
+  "check": 2,
+  "status": "passed",
+  "errors": [],
+  "warnings": [],
+  "logo": {
+    "ref": "logo.svg",
+    "exists": true,
+    "page": "site/index.html"
+  },
+  "detail": ""
+}

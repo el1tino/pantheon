@@ -1,0 +1,8 @@
+{
+  "id": "demo-launch",
+  "goal": "Invent a small business we could launch in a month, name it and build its website.",
+  "status": "done",
+  "phase": "integrate",
+  "budget_usd": 1.0,
+  "spent_usd": 0.03141239999999999
+}

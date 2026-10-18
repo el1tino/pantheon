@@ -1,0 +1,19 @@
+{
+  "check": 1,
+  "status": "failed",
+  "errors": [
+    {
+      "file": "site/script.js",
+      "kind": "runtime",
+      "message": "initCarousel is not defined",
+      "line": 20
+    }
+  ],
+  "warnings": [],
+  "logo": {
+    "ref": "logo.svg",
+    "exists": true,
+    "page": "site/index.html"
+  },
+  "detail": ""
+}

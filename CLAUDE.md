@@ -33,6 +33,8 @@ pantheon/
       events/         # event log + WebSocket
       db/             # models and migrations
   frontend/           # Next.js app: Chamber, Board, Vault, Replay
+  demo/               # recorded demo runs, imported as public read-only runs
+  deploy/Caddyfile    # HTTPS + routing for docker-compose.yml (see docs/DEPLOY.md)
   projects/           # one folder per run (git-ignored)
   config/seats.yaml   # 13 seats: letter, name, provider, model ID, colour, voice ID, sensitive_ok (no fixed roles)
   PANTHEON_SPEC.md
@@ -43,7 +45,7 @@ pantheon/
 ## Core contracts (details in the spec)
 
 - **Agent reply format:** JSON with `stance` (propose | challenge | agree | vote | report | question), `reply_to`, `content`, an optional `proposal` and optional `votes`. It is validated with Pydantic. An invalid reply is retried once with the error shown, then dropped. In the build phase the JSON is followed by plain `=== FILE: path ===` … `=== END FILE ===` blocks (paths under `site/` or `docs/`, text types only). A build reply may also carry `"proposal": {"images": [...]}` (image requests for the consultants) and `"proposal": {"evidence": [...]}` (files or check logs that prove a claim; claims without valid evidence are marked unverified).
-- **DB tables:** runs, seats, messages, votes, tasks, artifacts, events.
+- **DB tables:** runs, seats, messages, votes, tasks, artifacts, events, plus users, invites and login_sessions for invite-only login.
 - **Event types:** phase_changed, seat_thinking, token, message_done, vote_cast, task_updated, artifact_created, cost_updated, checkpoint_opened, checkpoint_resolved, message_routed, diff_applied.
 
 ## Guardrails (never break these)
@@ -53,6 +55,7 @@ pantheon/
 - **Sandboxed files:** agents write only inside `projects/<run_id>/`. Reject any path that resolves outside it.
 - **Sandboxed code:** generated code runs only in Docker, with no host files or secrets and with a timeout.
 - **Secrets stay on the server:** they are never sent to the browser or to any model.
+- **Accounts:** every run belongs to the person who started it, and only they can see or change it. Demo runs are public and read-only. Site previews are served at a per-run `site_key` URL, because the sandboxed iframe sends no cookie.
 - **Sensitive files:** a seat with `sensitive_ok: false` never receives files marked private.
 - **Fact-checking:** a claim with no proof (an artifact or log) is marked unverified in the UI.
 - **Model failure:** a seat whose provider fails shows as absent, its tasks are reassigned, and the run continues.
@@ -65,6 +68,6 @@ pantheon/
 4. **Missions, ideas, voting and checkpoints:** mission picker and Auto detection, anonymous scoring, checkpoint cards, user messages, and the text missions (Ask, Write, Plan, Decide, Learn) end to end.
 5. **Roles and building:** models nominate themselves for workstreams and vote on who does what (no fixed roles, no self-votes), the Board and the Vault.
 6. **Images and integration:** Docker execution and the consistency pass.
-7. **Replay, Demo mode and deployment.**
+7. **Replay, Demo mode and deployment:** Replay with a scrubber, a recorded demo that needs no API calls, invite-only login, and Docker Compose with Caddy.
 
 Commit after each milestone works.

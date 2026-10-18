@@ -105,13 +105,14 @@ def _seats_file() -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--port", type=int, default=9100)
+    parser.add_argument("--host", default="127.0.0.1", help="use 0.0.0.0 to reach it from a container")
     parser.add_argument("--cps", type=float, default=140.0, help="characters streamed per second")
     parser.add_argument("--fail", action="append", default=[], help="model id that always errors")
     args = parser.parse_args()
     Handler.cps = args.cps
     Handler.fail = set(args.fail)
     print(f"Fake OpenRouter on http://127.0.0.1:{args.port}/v1 (cps={args.cps}, failing={sorted(Handler.fail) or 'none'})")
-    ThreadingHTTPServer(("127.0.0.1", args.port), Handler).serve_forever()
+    ThreadingHTTPServer((args.host, args.port), Handler).serve_forever()
 
 
 if __name__ == "__main__":

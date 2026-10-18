@@ -3,9 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, useReducedMotion } from "framer-motion";
-import { answerBudget, answerCheckpoint, controlRun, sendMessage } from "@/lib/api";
+import Link from "next/link";
+import { RunInfo, answerBudget, answerCheckpoint, controlRun, getRun, sendMessage } from "@/lib/api";
 import { computeLayout } from "@/lib/chamber/geometry";
+import { RunInfoProvider } from "@/lib/chamber/runInfo";
 import { useChamber } from "@/lib/chamber/useChamber";
+import { useReplay } from "@/lib/chamber/useReplay";
 import BottomBar from "./BottomBar";
 import Board from "./Board";
 import BudgetCard from "./BudgetCard";
@@ -15,6 +18,7 @@ import DiffFeed from "./DiffFeed";
 import Seat from "./Seat";
 import TopBar from "./TopBar";
 import PlanCard from "./PlanCard";
+import ReplayBar from "./ReplayBar";
 import ResultPanel from "./ResultPanel";
 import Transcript from "./Transcript";
 import Vault from "./Vault";
@@ -29,8 +33,23 @@ const DECIDED_BY: Record<string, string> = {
   client: "you",
 };
 
-export default function ChamberView({ runId }: { runId: string }) {
-  const { state, connection, subscribe } = useChamber(runId);
+export default function ChamberView({ runId, mode = "live" }: { runId: string; mode?: "live" | "replay" }) {
+  const replaying = mode === "replay";
+  const liveFeed = useChamber(runId, !replaying);
+  const replay = useReplay(runId, replaying);
+  const { state, subscribe } = replaying ? replay : liveFeed;
+  const connection = replaying ? (replay.error ? "closed" : "open") : liveFeed.connection;
+  const [info, setInfo] = useState<RunInfo | null>(null);
+  const [clean, setClean] = useState(false);
+  useEffect(() => {
+    getRun(runId).then(setInfo).catch(() => {});
+  }, [runId]);
+  // Someone else's public run, or a replay: everything is shown, nothing can be answered.
+  const canChange = !replaying && !!info?.can_change;
+  const runInfo = useMemo(
+    () => ({ runId, siteKey: info?.site_key ?? "", canChange, replay: replaying }),
+    [runId, info?.site_key, canChange, replaying],
+  );
   const reducedMotion = useReducedMotion() ?? false;
   const stageRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
@@ -144,7 +163,11 @@ export default function ChamberView({ runId }: { runId: string }) {
     </>
   );
 
+  const readOnlyNote = replaying ? "Replay: the client answered this live." : "Only the person who started this run can answer.";
+  const showDrawer = drawerOpen && !clean;
+
   return (
+    <RunInfoProvider value={runInfo}>
     <div className="flex h-dvh flex-col overflow-hidden">
       <TopBar
         goal={state.goal}
@@ -199,7 +222,15 @@ export default function ChamberView({ runId }: { runId: string }) {
 
           {!state.ready && (
             <div className="absolute inset-0 flex items-center justify-center text-[13px] text-white/35">
-              {connection === "closed" ? "Can't reach the council. Is the backend running on port 8000?" : "Convening the council…"}
+              {connection === "denied"
+                ? "This run doesn't exist, or it isn't yours."
+                : connection === "closed"
+                  ? replaying
+                    ? `Can't load this replay: ${replay.error}`
+                    : "Can't reach the council. Is the backend running on port 8000?"
+                  : replaying
+                    ? "Loading the replay…"
+                    : "Convening the council…"}
             </div>
           )}
 
@@ -214,7 +245,7 @@ export default function ChamberView({ runId }: { runId: string }) {
             </div>
           )}
 
-          {!drawerOpen && (
+          {!drawerOpen && !clean && (
             <button
               onClick={() => setDrawerOpen(true)}
               className="absolute right-3 top-3 z-40 hidden rounded-md border border-white/10 bg-black/50 px-2.5 py-1 text-[12px] text-white/60 hover:text-white md:block"
@@ -222,9 +253,22 @@ export default function ChamberView({ runId }: { runId: string }) {
               {"⟨"} Transcript
             </button>
           )}
+          {finished && !replaying && state.caughtUp && (
+            <Link
+              href={`/replay/${runId}`}
+              className="absolute bottom-4 left-4 z-40 rounded-full border border-white/15 bg-black/60 px-4 py-1.5 text-[12px] text-white/75 hover:border-white/35 hover:text-white"
+            >
+              Replay
+            </Link>
+          )}
+          {replaying && (
+            <span className={`absolute left-4 top-3 z-40 rounded-full border border-white/10 bg-black/50 px-2.5 py-0.5 text-[10.5px] uppercase tracking-[0.2em] text-white/50 ${clean ? "hidden" : ""}`}>
+              Replay
+            </span>
+          )}
           <button
             onClick={() => setSheetOpen(true)}
-            className="absolute bottom-3 left-1/2 z-40 -translate-x-1/2 rounded-full border border-white/10 bg-black/60 px-4 py-1.5 text-[12px] text-white/70 md:hidden"
+            className={`${clean ? "hidden " : ""}absolute bottom-3 left-1/2 z-40 -translate-x-1/2 rounded-full border border-white/10 bg-black/60 px-4 py-1.5 text-[12px] text-white/70 md:hidden`}
           >
             Transcript · {state.messages.length}
           </button>
@@ -233,7 +277,7 @@ export default function ChamberView({ runId }: { runId: string }) {
             {diffOpen && <DiffFeed diffs={state.diffs} seats={state.seats} onClose={() => setDiffOpen(false)} />}
           </AnimatePresence>
 
-          {state.deliverable && !resultOpen && !state.checkpoint && (
+          {state.deliverable && !resultOpen && !state.checkpoint && !clean && (
             <button
               onClick={() => {
                 setPanel(null);
@@ -264,12 +308,17 @@ export default function ChamberView({ runId }: { runId: string }) {
             )}
           </AnimatePresence>
 
+          {state.checkpoint && !canChange && (
+            <div className="absolute left-1/2 top-4 z-[60] -translate-x-1/2 rounded-full border border-amber-200/30 bg-black/70 px-3 py-1 text-[11.5px] text-amber-100/85">
+              {readOnlyNote}
+            </div>
+          )}
+          <div className="contents" inert={!canChange}>
           {(state.checkpoint?.kind === "pick" || state.checkpoint?.kind === "review") && (
             <CheckpointCard
               key={`${state.checkpoint.kind}-${state.lastSeq}`}
               checkpoint={state.checkpoint}
               seats={state.seats}
-              runId={runId}
               siteVersion={state.siteVersion}
               onAnswer={async (answer) => {
                 await answerCheckpoint(runId, answer);
@@ -300,15 +349,16 @@ export default function ChamberView({ runId }: { runId: string }) {
               }}
             />
           )}
+          </div>
         </div>
 
         {/* Desktop drawer */}
         <aside
           className={`relative z-30 hidden shrink-0 flex-col border-l border-white/[0.06] bg-black/35 backdrop-blur transition-[width] duration-500 ease-out md:flex ${
-            drawerOpen ? "w-[380px] xl:w-[420px]" : "w-0 overflow-hidden border-l-0"
+            showDrawer ? "w-[380px] xl:w-[420px]" : "w-0 overflow-hidden border-l-0"
           }`}
         >
-          {drawerOpen && transcript}
+          {showDrawer && transcript}
         </aside>
 
         {/* Mobile bottom sheet */}
@@ -321,6 +371,15 @@ export default function ChamberView({ runId }: { runId: string }) {
         </aside>
       </div>
 
+      {replaying ? (
+        <ReplayBar replay={replay} clean={clean} onClean={() => setClean((c) => !c)} />
+      ) : !canChange ? (
+        info && (
+          <footer className="relative z-30 flex h-12 shrink-0 items-center justify-center border-t border-white/[0.06] bg-black/30 px-4 text-[12px] text-white/45">
+            {info.public ? "A recorded demo. Watching only." : "Watching only."}
+          </footer>
+        )
+      ) : (
       <BottomBar
         status={state.status}
         busy={busy}
@@ -337,6 +396,8 @@ export default function ChamberView({ runId }: { runId: string }) {
         onResume={() => act(() => controlRun(runId, "resume"))}
         onStop={() => act(() => controlRun(runId, "stop"))}
       />
+      )}
     </div>
+    </RunInfoProvider>
   );
 }

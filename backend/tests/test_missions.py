@@ -14,6 +14,7 @@ from app.devtools.council_script import reply
 from app.gateway import openrouter
 from app.gateway.openrouter import ChatResult, GatewayError
 from app.orchestrator.missions import MissionRun
+from tests.conftest import login
 from tests.test_debate import PRICES, SEATS, events
 
 
@@ -201,6 +202,7 @@ def client(env, monkeypatch):
     from app.main import app
 
     with TestClient(app) as c:
+        login(c)
         monkeypatch.setattr(get_settings(), "moderator_model", "fake/mod")
         yield c
 

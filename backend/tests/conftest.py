@@ -9,6 +9,7 @@ from app.config import get_settings
 def env(tmp_path, monkeypatch):
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'test.db'}")
     monkeypatch.setenv("PROJECTS_DIR", str(tmp_path / "projects"))
+    monkeypatch.setenv("DEMO_DIR", str(tmp_path / "demo"))  # not the recorded demo in the repo
     get_settings.cache_clear()
     monkeypatch.setattr(db_session, "_engine", None)
     yield tmp_path
@@ -60,3 +61,27 @@ def _quick_checks(request, monkeypatch):
         return quick_check_site(site_dir)
 
     monkeypatch.setattr("app.orchestrator.integration.check_site", fake)
+
+
+def login(client, email="owner@example.com", password="correct horse battery", owner=True):
+    """Create an account straight in the database and log the test client in."""
+    from sqlmodel import Session, select
+
+    from app import auth
+    from app.db import User
+    from app.db.session import get_engine
+
+    with Session(get_engine()) as s:
+        if not s.exec(select(User).where(User.email == email)).first():
+            s.add(User(email=email, password_hash=auth.hash_password(password), is_owner=owner))
+            s.commit()
+    r = client.post("/api/auth/login", json={"email": email, "password": password})
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+@pytest.fixture(autouse=True)
+def _fresh_rate_limits():
+    from app import auth
+
+    auth.reset_rate_limits()

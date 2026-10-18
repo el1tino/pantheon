@@ -323,10 +323,11 @@ def test_site_route_serves_images(env):
         with Session(get_engine()) as s:
             s.add(Run(id=m_id, goal="g"))
             s.commit()
+            key = s.get(Run, m_id).site_key
         sandbox.write_bytes(m_id, "site/logo.png", PNG)
         sandbox.write_bytes(m_id, "site/logo.svg", images.practice_svg("x", "logo"))
-        assert client.get(f"/api/runs/{m_id}/site/logo.png").headers["content-type"] == "image/png"
-        svg = client.get(f"/api/runs/{m_id}/site/logo.svg")
+        assert client.get(f"/api/sites/{key}/logo.png").headers["content-type"] == "image/png"
+        svg = client.get(f"/api/sites/{key}/logo.svg")
         assert svg.headers["content-type"].startswith("image/svg+xml")
         assert "default-src 'none'" in svg.headers["content-security-policy"]
 

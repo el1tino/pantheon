@@ -70,6 +70,7 @@ async def start_run(
     budget_usd: float,
     max_rounds: int,
     mission: str = "auto",
+    owner_id: str | None = None,
     chat: ChatFn | None = None,
 ) -> str:
     prices = await get_prices()
@@ -96,6 +97,9 @@ async def start_run(
         chat=chat, prices=prices, on_budget_pause=ask_budget, on_checkpoint=ask_checkpoint,
         control=control,
     )
+    debate.run.owner_id = owner_id
+    session.add(debate.run)
+    session.commit()
     debate.log.subscribe(bus.publish)
     active = ActiveRun(debate=debate, control=control)
     run_id = debate.run_id

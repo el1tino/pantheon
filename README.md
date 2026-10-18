@@ -10,6 +10,7 @@ A council of AI models from different providers takes on anything people use AI 
 - Milestone 4 (Missions, voting and checkpoints) is done: Ask, Write, Plan, Decide and Learn run end to end, and Launch runs to its idea checkpoint. Options are scored anonymously, you pick at checkpoints and review the result, and you can address the council at any time.
 - Milestone 6 (Images and integration) is done: image consultants and the Create mission; Build and Launch now end with an Integrate phase that runs the site in a locked-down Docker container, sends errors back to their owners, makes sure the site uses its own logo and checks name, colours and prices for consistency. Claims of success without proof are marked unverified.
 - Milestone 5 (Roles and building) is done: Build produces a multi-file website, and Launch now goes through Research, Roles and Build to a site plus business documents. Workstream leads are voted in, you approve the task plan, builders work in parallel with reviews, and the Board and the Vault show it all, including a live preview of the site.
+- Milestone 7 (Replay, Demo mode and deployment) is done: login with invite-only accounts, Replay with a scrubber at 1× to 8×, a recorded demo that plays with no API calls, and a Docker Compose deployment behind Caddy with automatic HTTPS (see [`docs/DEPLOY.md`](docs/DEPLOY.md)).
 
 No seat has a fixed role. Later in a run, each model puts itself forward for the work it's best at and the council votes on who does what.
 
@@ -34,7 +35,7 @@ Image keys are optional. Add any of `RECRAFT_API_KEY`, `OPENAI_API_KEY`, `GEMINI
 ## Run it
 
 ```bash
-cp .env.example .env          # then put your key in OPENROUTER_API_KEY
+cp .env.example .env          # then fill in OPENROUTER_API_KEY, ADMIN_EMAIL and ADMIN_PASSWORD (10+ characters)
 
 # Terminal 1: backend on :8000
 cd backend
@@ -47,7 +48,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000, pick a mission (or leave it on Auto), write a goal, pick the seats, set a budget cap and press **Convene the council**. The Chamber opens and the run plays live. http://localhost:3000/test still sends a single test call.
+Open http://localhost:3000 and log in with the `ADMIN_EMAIL` account (it is created on first start). Pick a mission (or leave it on Auto), write a goal, pick the seats, set a budget cap and press **Convene the council**. The Chamber opens and the run plays live. http://localhost:3000/test still sends a single test call.
 
 ### Missions
 
@@ -110,6 +111,24 @@ Open http://localhost:3000, pick a mission (or leave it on Auto), write a goal, 
 
 ![A Create gallery](docs/milestone-6-gallery.png)
 
+### Accounts
+
+Nobody can sign up without an invite. The owner account comes from `ADMIN_EMAIL` and `ADMIN_PASSWORD` on first start. On the home page the owner presses **Invite someone** to get a one-use link that expires after `INVITE_DAYS`. Each person sees and controls only their own runs. You can also add accounts from the terminal: `cd backend && uv run python -m app.cli create-user friend@example.com` (add `--owner` for another owner).
+
+### Replay and the demo
+
+- **Replay:** every finished run has a **Replay** button (or open `/replay/<run_id>`). It plays the stored events through the same Chamber at 1×, 2×, 4× or 8×. Long waits are cut short. The scrubber shows each phase as a tick and each checkpoint as an amber dot. Drag it, or use the arrow keys and the space bar. Effects only fire while playing. **Clean** hides the transcript and the controls for filming. Checkpoint cards show what was asked but can't be answered.
+- **Demo:** `demo/launch/` is a recorded Launch run with six seats. It covers the idea pick, research, role votes, the plan, a build whose first Docker check fails and is fixed, and the review. It was recorded with the practice council below, so its replies are scripted. It's imported as a public, read-only run on start, and anyone can watch it under **Watch a demo** without logging in. With `DEMO_MODE=true`, new runs are switched off and the home page only offers the demo. That's safe for a public link and needs no API key.
+- Record your own: finish a run, then `cd backend && uv run python -m app.cli export-demo RUN_ID SLUG` writes `demo/SLUG/`.
+
+![Replaying the demo at 8×: the scrubber shows phases and checkpoints](docs/milestone-7-replay.png)
+
+<img src="docs/milestone-7-phone.png" alt="A Build run's review on a phone, served over HTTPS by the Compose stack" width="300">
+
+### Deploy
+
+See [`docs/DEPLOY.md`](docs/DEPLOY.md): a VPS with Docker Compose, Caddy for HTTPS, and `docker compose up -d --build`.
+
 ### Practice without spending anything
 
 `backend/scripts/fake_openrouter.py` stands in for OpenRouter and streams scripted replies for every mission step (from `backend/app/devtools/council_script.py`). Use it to work on the UI or film the Chamber for free:
@@ -159,6 +178,7 @@ The model IDs in `config/seats.yaml` change often. Check them at https://openrou
 
 ```bash
 cd backend && uv run pytest        # mocked gateway, no API cost; the `docker` tests use the runner image if it's built
+cd backend && uv run ruff check .
 cd frontend && npm run lint && npm run build
 ```
 
@@ -171,11 +191,15 @@ backend/app/db/            SQLite tables: runs, seats, messages, votes, tasks, a
 backend/app/orchestrator/  missions, building (workstreams, plan, parallel build), debate rounds, voting, checkpoints, budget, reply and file-block formats, file sandbox
 backend/app/events/        ordered event log + in-process bus for the WebSocket
 backend/app/runs.py        starts runs in the background; pause, stop, budget answers
-backend/app/cli.py         terminal entry point
+backend/app/auth.py        accounts, invites, login sessions, who can see and change a run
+backend/app/demo.py        imports demo/ as public runs; exports a run as a demo
+backend/app/cli.py         terminal entry point (debate, create-user, export-demo)
 backend/scripts/           fake_openrouter.py practice server
-frontend/                  Next.js app; /api/* is proxied to the backend, the WebSocket goes direct
-frontend/src/lib/chamber/  event reducer, layout geometry, WebSocket hook
+frontend/                  Next.js app: convene, login, invites, Chamber, Replay
+frontend/src/lib/chamber/  event reducer, layout geometry, WebSocket and Replay hooks
 frontend/src/components/   Chamber (seats, core, PixiJS effects, transcript) and the convene form
 config/seats.yaml          the 13 seats (check model IDs at openrouter.ai/models)
+demo/                      recorded demo runs, played with no API calls
+deploy/Caddyfile           HTTPS and routing for docker-compose.yml
 projects/                  one folder per run (git-ignored)
 ```
