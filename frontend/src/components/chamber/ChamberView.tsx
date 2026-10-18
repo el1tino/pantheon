@@ -7,14 +7,17 @@ import { answerBudget, answerCheckpoint, controlRun, sendMessage } from "@/lib/a
 import { computeLayout } from "@/lib/chamber/geometry";
 import { useChamber } from "@/lib/chamber/useChamber";
 import BottomBar from "./BottomBar";
+import Board from "./Board";
 import BudgetCard from "./BudgetCard";
 import CheckpointCard from "./CheckpointCard";
 import Core from "./Core";
 import DiffFeed from "./DiffFeed";
 import Seat from "./Seat";
 import TopBar from "./TopBar";
+import PlanCard from "./PlanCard";
 import ResultPanel from "./ResultPanel";
 import Transcript from "./Transcript";
+import Vault from "./Vault";
 
 // PixiJS needs the browser.
 const EffectsLayer = dynamic(() => import("./EffectsLayer"), { ssr: false });
@@ -37,6 +40,14 @@ export default function ChamberView({ runId }: { runId: string }) {
   const [flash, setFlash] = useState<{ key: number; kind: "add" | "remove" } | null>(null);
   const [busy, setBusy] = useState(false);
   const [resultOpen, setResultOpen] = useState(false);
+  const [panel, setPanelState] = useState<"board" | "vault" | null>(null);
+  const panelRef = useRef<"board" | "vault" | null>(null);
+  // The Board, the Vault and the result share the stage: opening one closes the others.
+  const setPanel = (next: "board" | "vault" | null) => {
+    panelRef.current = next;
+    setPanelState(next);
+    if (next) setResultOpen(false);
+  };
   const shownResult = useRef<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -91,21 +102,36 @@ export default function ChamberView({ runId }: { runId: string }) {
   useEffect(() => {
     if (state.status === "done" && state.deliverable && state.caughtUp && shownResult.current !== runId) {
       shownResult.current = runId;
-      const t = setTimeout(() => setResultOpen(true), 1600);
+      // Only if the user isn't already looking at the Board or the Vault.
+      const t = setTimeout(() => setResultOpen((open) => open || panelRef.current === null), 1600);
       return () => clearTimeout(t);
     }
   }, [state.status, state.deliverable, state.caughtUp, runId]);
 
-  const thinking = state.seats.find((s) => s.status === "thinking")?.letter ?? (state.live?.seat ?? null);
+  const thinking = state.seats.find((s) => s.status === "thinking")?.letter ?? null;
   const dim = !!state.checkpoint;
   const finished = ["done", "stopped", "failed"].includes(state.status);
 
   const transcript = (
     <>
       <div className="flex h-11 shrink-0 items-center gap-1 border-b border-white/[0.06] px-3">
-        <span className="rounded-md bg-white/[0.06] px-2.5 py-1 text-[12px] text-white/85">Transcript</span>
-        <span className="cursor-not-allowed rounded-md px-2.5 py-1 text-[12px] text-white/25" title="Coming soon">Board</span>
-        <span className="cursor-not-allowed rounded-md px-2.5 py-1 text-[12px] text-white/25" title="Coming soon">Vault</span>
+        {([
+          ["transcript", "Transcript", null],
+          ["board", "Board", Object.values(state.tasks).filter((t) => t.kind !== "workstream").length],
+          ["vault", "Vault", Object.keys(state.files).length],
+        ] as const).map(([key, label, count]) => {
+          const active = key === "transcript" ? panel === null : panel === key;
+          return (
+            <button
+              key={key}
+              onClick={() => setPanel(key === "transcript" ? null : panel === key ? null : key)}
+              className={`rounded-md px-2.5 py-1 text-[12px] transition-colors ${active ? "bg-white/[0.08] text-white/90" : "text-white/45 hover:text-white/80"}`}
+            >
+              {label}
+              {count ? <span className="ml-1.5 font-mono text-[10px] text-white/35">{count}</span> : null}
+            </button>
+          );
+        })}
         <button
           onClick={() => (window.innerWidth < 768 ? setSheetOpen(false) : setDrawerOpen(false))}
           className="ml-auto rounded px-2 py-1 text-[12px] text-white/40 hover:text-white"
@@ -209,12 +235,21 @@ export default function ChamberView({ runId }: { runId: string }) {
 
           {state.deliverable && !resultOpen && !state.checkpoint && (
             <button
-              onClick={() => setResultOpen(true)}
+              onClick={() => {
+                setPanel(null);
+                setResultOpen(true);
+              }}
               className="absolute bottom-4 right-4 z-40 rounded-full border border-amber-200/30 bg-black/60 px-4 py-1.5 text-[12px] text-amber-100/90 shadow-[0_0_24px_rgba(253,230,138,0.12)] hover:border-amber-200/60"
             >
               View result · {state.deliverable.title}
             </button>
           )}
+          <AnimatePresence>
+            {panel === "board" && <Board tasks={state.tasks} seats={state.seats} onClose={() => setPanel(null)} />}
+            {panel === "vault" && (
+              <Vault runId={runId} files={state.files} seats={state.seats} siteVersion={state.siteVersion} onClose={() => setPanel(null)} />
+            )}
+          </AnimatePresence>
           <AnimatePresence>
             {resultOpen && state.deliverable && (
               <ResultPanel runId={runId} deliverable={state.deliverable} onClose={() => setResultOpen(false)} />
@@ -226,8 +261,20 @@ export default function ChamberView({ runId }: { runId: string }) {
               key={`${state.checkpoint.kind}-${state.lastSeq}`}
               checkpoint={state.checkpoint}
               seats={state.seats}
+              runId={runId}
+              siteVersion={state.siteVersion}
               onAnswer={async (answer) => {
                 await answerCheckpoint(runId, answer);
+              }}
+            />
+          )}
+          {state.checkpoint?.kind === "plan" && (
+            <PlanCard
+              key={`plan-${state.lastSeq}`}
+              checkpoint={state.checkpoint}
+              seats={state.seats}
+              onApprove={async (assignments) => {
+                await answerCheckpoint(runId, { action: "approve", assignments });
               }}
             />
           )}

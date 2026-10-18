@@ -8,6 +8,7 @@ A council of AI models from different providers takes on anything people use AI 
 - Milestone 2 (Debate engine) is done: seats debate a goal in the terminal with round limits, a majority vote, a moderator summary and a hard budget cap, and the transcript is saved.
 - Milestone 3 (The Chamber, live) is done: convene a council in the browser and watch the debate play out live.
 - Milestone 4 (Missions, voting and checkpoints) is done: Ask, Write, Plan, Decide and Learn run end to end, and Launch runs to its idea checkpoint. Options are scored anonymously, you pick at checkpoints and review the result, and you can address the council at any time.
+- Milestone 5 (Roles and building) is done: Build produces a multi-file website, and Launch now goes through Research, Roles and Build to a site plus business documents. Workstream leads are voted in, you approve the task plan, builders work in parallel with reviews, and the Board and the Vault show it all, including a live preview of the site.
 
 No seat has a fixed role. Later in a run, each model puts itself forward for the work it's best at and the council votes on who does what.
 
@@ -46,8 +47,9 @@ Open http://localhost:3000, pick a mission (or leave it on Auto), write a goal, 
 | Plan | Trips, events, meals, workouts | **Options** → Detail → **Check** |
 | Decide | Choosing between products or offers | Criteria → Research → Debate → **Recommendation** |
 | Learn | Understanding a topic | **Approach** → Lesson → Quiz |
-| Launch | A business from scratch | **Ideas** (the later phases come in milestones 5 and 6) |
-| Build, Create | Apps, images | Coming in milestones 5 and 6 |
+| Build | Websites and small web apps | **Ideas** → **Roles** → Build → **Review** (Integrate comes in milestone 6) |
+| Launch | A business from scratch | **Ideas** → Research → **Roles** → Build → **Review**: a landing page, marketing copy, a launch plan, a business plan and pitch deck text (Integrate comes in milestone 6) |
+| Create | Logos, images | Coming in milestone 6 |
 
 - **Auto:** the moderator reads the goal, picks the mission and says why.
 - **Options:** every seat proposes 1 to 3 options, and the others score them 1 to 5 without knowing who wrote them. No seat scores its own. You pick from the top 3, or ask for another round.
@@ -58,6 +60,22 @@ Open http://localhost:3000, pick a mission (or leave it on Auto), write a goal, 
 - **Health, legal and money questions:** the council says it isn't a professional and flags when you should see one.
 
 ![Pick checkpoint](docs/milestone-4-pick.png)
+
+### Building (Build and Launch)
+
+- **Roles:** the moderator proposes workstreams (for example copy, page structure, styling and interactivity). Seats pitch for them, the others vote (never for themselves), and a tie goes to the moderator. The moderator turns the result into a task plan. Every task has an owner, a reviewer who is always a different model, its files and its dependencies.
+- **Plan checkpoint:** you approve the plan and can change any owner or reviewer first. A task can't be reviewed by its own builder.
+- **Build:** tasks run in waves that respect their dependencies, with up to 3 at once. Builders write real files under `projects/<run_id>/site/` and `docs/`. A builder may ask a teammate one question through the Board, and the moderator routes it. Each reviewer either approves or asks for specific changes (at most 2 rounds). If a seat's provider fails, its task moves to another seat.
+- **Review:** you see the site itself in the review card. Asking for changes sends them to the tasks they affect.
+- **The Board** shows every task by status, with owner, reviewer, files and any question thread. **The Vault** shows every file: code with line numbers, documents rendered, and a live preview of the site.
+- **The preview is sandboxed.** It's served read-only by the backend with a strict content security policy (no network access, no forms sent anywhere) inside a sandboxed iframe, so the site's scripts can't reach the app or the internet. Nothing a model writes runs on the server: running code in Docker comes in milestone 6.
+- **How models write files:** a builder's reply is the usual JSON, followed by plain `=== FILE: path ===` … `=== END FILE ===` blocks. Paths must stay under `site/` or `docs/`, only text file types are allowed, and there's a size limit.
+
+![Plan checkpoint](docs/milestone-5-plan.png)
+
+![The Board during a Launch build](docs/milestone-5-board.png)
+
+![The Vault with the live site preview](docs/milestone-5-vault.png)
 
 ### Practice without spending anything
 
@@ -117,7 +135,7 @@ cd frontend && npm run lint && npm run build
 backend/app/config.py      APP_NAME + settings from .env
 backend/app/gateway/       OpenRouter client (OpenAI SDK)
 backend/app/db/            SQLite tables: runs, seats, messages, votes, tasks, artifacts, events
-backend/app/orchestrator/  missions, debate rounds, scoring and role votes, checkpoints, budget, reply format, file sandbox
+backend/app/orchestrator/  missions, building (workstreams, plan, parallel build), debate rounds, voting, checkpoints, budget, reply and file-block formats, file sandbox
 backend/app/events/        ordered event log + in-process bus for the WebSocket
 backend/app/runs.py        starts runs in the background; pause, stop, budget answers
 backend/app/cli.py         terminal entry point

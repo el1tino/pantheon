@@ -88,8 +88,25 @@ export type MissionOption = { key: string; label: string; tagline: string; avail
 
 export const listMissions = () => request<MissionOption[]>("/api/missions");
 
-export const answerCheckpoint = (runId: string, answer: { action: string; option?: string; note?: string }) =>
+export const answerCheckpoint = (
+  runId: string,
+  answer: { action: string; option?: string; note?: string; assignments?: Record<string, { owner: string; reviewer: string }> },
+) =>
   request<{ ok: boolean }>(`/api/runs/${runId}/checkpoint`, { method: "POST", body: JSON.stringify(answer) });
 
 export const sendMessage = (runId: string, text: string) =>
   request<{ id: string }>(`/api/runs/${runId}/message`, { method: "POST", body: JSON.stringify({ text }) });
+
+export type TreeFile = { path: string; size: number };
+
+export const runTree = (runId: string) => request<TreeFile[]>(`/api/runs/${runId}/tree`);
+
+export async function fileText(runId: string, path: string): Promise<string> {
+  const res = await fetch(`/api/runs/${runId}/files/${path}?inline=true`);
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.text();
+}
+
+/** The built site is served by the backend with a strict CSP; the iframe is sandboxed too. */
+export const siteUrl = (runId: string, path = "index.html", version = 0) =>
+  `/api/runs/${runId}/site/${path}?v=${version}`;

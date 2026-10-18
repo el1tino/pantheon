@@ -5,15 +5,20 @@ import { motion } from "framer-motion";
 import Markdown from "@/components/Markdown";
 import { SeatView } from "@/lib/chamber/reducer";
 import { Checkpoint } from "@/lib/chamber/types";
+import SitePreview from "./SitePreview";
 
 type Props = {
   checkpoint: Extract<Checkpoint, { kind: "pick" | "review" }>;
   seats: SeatView[];
+  runId: string;
+  siteVersion: number;
   onAnswer: (answer: { action: string; option?: string; note?: string }) => Promise<void>;
 };
 
 /** The council stops and the client decides: pick an option, or review the result. */
-export default function CheckpointCard({ checkpoint, seats, onAnswer }: Props) {
+export default function CheckpointCard({ checkpoint, seats, runId, siteVersion, onAnswer }: Props) {
+  const preview = checkpoint.kind === "review" ? checkpoint.preview : null;
+  const [view, setView] = useState<"site" | "text">(preview ? "site" : "text");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [changing, setChanging] = useState(false);
@@ -38,7 +43,9 @@ export default function CheckpointCard({ checkpoint, seats, onAnswer }: Props) {
         initial={{ opacity: 0, y: 28, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="flex max-h-full w-[min(760px,96vw)] flex-col rounded-2xl border border-amber-200/20 bg-[#0d0c10]/95 shadow-2xl"
+        className={`flex max-h-full flex-col rounded-2xl border border-amber-200/20 bg-[#0d0c10]/95 shadow-2xl ${
+          preview ? "h-[min(860px,96%)] w-[min(1100px,96vw)]" : "w-[min(760px,96vw)]"
+        }`}
         style={{ boxShadow: "0 0 80px rgba(253, 230, 138, 0.08)" }}
       >
         <div className="border-b border-white/[0.06] px-6 pb-4 pt-5">
@@ -51,6 +58,19 @@ export default function CheckpointCard({ checkpoint, seats, onAnswer }: Props) {
               ? "Each option was scored 1 to 5 by the other members, without knowing who wrote it."
               : "Accept it, or tell the council what to change and it will revise."}
           </p>
+          {preview && (
+            <div className="mt-3 flex gap-1">
+              {(["site", "text"] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={`rounded-md px-2.5 py-1 text-[12px] ${view === v ? "bg-white/[0.08] text-white" : "text-white/45 hover:text-white"}`}
+                >
+                  {v === "site" ? "Site preview" : checkpoint.kind === "review" ? checkpoint.title : ""}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
@@ -84,6 +104,8 @@ export default function CheckpointCard({ checkpoint, seats, onAnswer }: Props) {
                 </motion.button>
               ))}
             </div>
+          ) : preview && view === "site" ? (
+            <SitePreview runId={runId} version={siteVersion} className="min-h-[50vh]" />
           ) : (
             <div className="rounded-xl border border-white/10 bg-black/30 p-4 text-[13.5px] text-white/80">
               <Markdown text={checkpoint.content} />

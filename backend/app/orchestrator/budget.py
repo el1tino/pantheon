@@ -28,6 +28,7 @@ class Budget:
     cap_usd: float
     prices: dict[str, tuple[float, float]] = field(default_factory=dict)
     spent_usd: float = 0.0
+    reserved_usd: float = 0.0  # estimates of calls still in flight
 
     def price(self, model: str) -> tuple[float, float]:
         if model in self.prices:
@@ -41,8 +42,8 @@ class Budget:
 
     def check(self, estimate: float) -> None:
         """Raise BudgetExceeded if this call could take spending past the cap."""
-        if self.spent_usd + estimate > self.cap_usd:
-            raise BudgetExceeded(self.spent_usd, estimate, self.cap_usd)
+        if self.spent_usd + self.reserved_usd + estimate > self.cap_usd:
+            raise BudgetExceeded(self.spent_usd + self.reserved_usd, estimate, self.cap_usd)
 
     def actual_cost(
         self, model: str, prompt_tokens: int, completion_tokens: int, reported: float | None

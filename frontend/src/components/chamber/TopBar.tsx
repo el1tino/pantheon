@@ -26,6 +26,8 @@ const STEP_LABEL: Record<string, string> = {
   revise: "Revising",
   verdict: "Assembling",
   vote: "Vote",
+  build: "Building",
+  workstreams: "Workstreams",
 };
 
 export function usd(v: number): string {

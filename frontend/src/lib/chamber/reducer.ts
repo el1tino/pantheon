@@ -2,7 +2,8 @@
 // late joiners and (later) Replay all go through the same code.
 
 import {
-  CLIENT, ChamberEvent, Checkpoint, Deliverable, Diff, MODERATOR, Message, RailPhase, SeatInfo,
+  CLIENT, ChamberEvent, Checkpoint, Deliverable, Diff, FileView, MODERATOR, Message, RailPhase, SeatInfo,
+  TaskView,
 } from "./types";
 
 export type SeatStatus = "idle" | "thinking" | "speaking" | "absent";
@@ -27,7 +28,7 @@ export type ChamberState = {
   status: string;
   seats: SeatView[];
   messages: Message[];
-  live: { seat: string; text: string } | null;
+  live: Record<string, string>; // seat -> text streaming right now (several during the build)
   cost: { spent: number; cap: number; ratio: number; warning: boolean };
   core: { plus: number; minus: number };
   diffs: Diff[];
@@ -38,7 +39,9 @@ export type ChamberState = {
   mission: { key: string; label: string; reason: string } | null;
   phases: RailPhase[];
   deliverable: Deliverable | null;
-  tasks: Record<string, { title: string; owner: string | null; status: string }>;
+  tasks: Record<string, TaskView>;
+  files: Record<string, FileView>;
+  siteVersion: number; // bumps whenever a file under site/ changes, to refresh the preview
   heat: Heat;
   error: string | null;
   lastSeq: number;
@@ -54,7 +57,7 @@ export const initialState: ChamberState = {
   status: "created",
   seats: [],
   messages: [],
-  live: null,
+  live: {},
   cost: { spent: 0, cap: 0, ratio: 0, warning: false },
   core: { plus: 0, minus: 0 },
   diffs: [],
@@ -66,6 +69,8 @@ export const initialState: ChamberState = {
   phases: [{ key: "convene", label: "Convene", available: true }],
   deliverable: null,
   tasks: {},
+  files: {},
+  siteVersion: 0,
   heat: {},
   error: null,
   lastSeq: 0,
@@ -86,13 +91,34 @@ function updateSeat(seats: SeatView[], letter: string, patch: Partial<SeatView>)
   return seats.map((s) => (s.letter === letter ? { ...s, ...patch } : s));
 }
 
-// Only one seat speaks at a time: whoever starts thinking or talking takes the floor.
-function takeFloor(seats: SeatView[], letter: string): SeatView[] {
+// Whoever starts thinking or talking takes the floor from seats that have finished speaking.
+// Seats still streaming (parallel builders) keep theirs.
+function takeFloor(seats: SeatView[], letter: string, live: Record<string, string>): SeatView[] {
   return seats.map((s) =>
-    s.letter !== letter && (s.status === "speaking" || s.status === "thinking")
+    s.letter !== letter && !(s.letter in live) && (s.status === "speaking" || s.status === "thinking")
       ? { ...s, status: "idle" }
       : s,
   );
+}
+
+function without(live: Record<string, string>, seat: string): Record<string, string> {
+  if (!(seat in live)) return live;
+  const next = { ...live };
+  delete next[seat];
+  return next;
+}
+
+// A seat's badge shows the role the council voted it into: the workstreams it leads, or
+// in lighter missions the parts it writes.
+function badges(seats: SeatView[], tasks: Record<string, TaskView>): SeatView[] {
+  const all = Object.values(tasks);
+  const leads = all.filter((t) => t.kind === "workstream");
+  const source = leads.length ? leads : all.filter((t) => t.kind === "part");
+  return seats.map((seat) => {
+    const mine = source.filter((t) => t.owner === seat.letter).map((t) => t.title);
+    const role = mine.length ? (mine.length > 1 ? `${mine[0]} +${mine.length - 1}` : mine[0]) : null;
+    return seat.role === role ? seat : { ...seat, role };
+  });
 }
 
 export function reduce(state: ChamberState, ev: ChamberEvent): ChamberState {
@@ -123,7 +149,7 @@ export function reduce(state: ChamberState, ev: ChamberEvent): ChamberState {
       if (p.error) s.error = p.error;
       if (p.decision !== undefined && p.status) {
         s.decision = p.decision ? { id: p.decision, decidedBy: p.decided_by } : null;
-        s.live = null;
+        s.live = {};
         s.seats = s.seats.map((x) => (x.status === "absent" ? x : { ...x, status: "idle" }));
       }
       return s;
@@ -131,22 +157,22 @@ export function reduce(state: ChamberState, ev: ChamberEvent): ChamberState {
     case "seat_thinking": {
       if (p.state === "absent") {
         s.seats = updateSeat(s.seats, p.seat, { status: "absent", caption: "", error: p.error });
-        if (s.live?.seat === p.seat) s.live = null;
+        s.live = without(s.live, p.seat);
         return s;
       }
       if (p.state === "thinking" || p.state === "retrying") {
-        s.seats = updateSeat(takeFloor(s.seats, p.seat), p.seat, {
+        s.seats = updateSeat(takeFloor(s.seats, p.seat, s.live), p.seat, {
           status: "thinking",
           caption: "",
         });
-        s.live = { seat: p.seat, text: "" };
+        s.live = { ...s.live, [p.seat]: "" };
       }
       return s;
     }
     case "token": {
-      const text = (s.live && s.live.seat === p.seat ? s.live.text : "") + p.text;
-      s.live = { seat: p.seat, text };
-      s.seats = updateSeat(takeFloor(s.seats, p.seat), p.seat, {
+      const text = (s.live[p.seat] ?? "") + p.text;
+      s.live = { ...s.live, [p.seat]: text };
+      s.seats = updateSeat(takeFloor(s.seats, p.seat, s.live), p.seat, {
         status: "speaking",
         caption: firstLine(text),
       });
@@ -155,15 +181,15 @@ export function reduce(state: ChamberState, ev: ChamberEvent): ChamberState {
     case "message_done": {
       if (p.dropped) {
         s.seats = updateSeat(s.seats, p.seat, { status: "idle", caption: "" });
-        s.live = null;
+        s.live = without(s.live, p.seat);
         return s;
       }
       const msg = p as unknown as Message;
       s.messages = [...s.messages, msg];
       if (msg.seat === CLIENT) return s; // the user's words don't interrupt whoever is speaking
-      s.live = null;
+      s.live = without(s.live, msg.seat);
       if (msg.seat !== MODERATOR) {
-        s.seats = updateSeat(takeFloor(s.seats, msg.seat), msg.seat, {
+        s.seats = updateSeat(takeFloor(s.seats, msg.seat, s.live), msg.seat, {
           status: "speaking",
           caption: firstLine(msg.content),
         });
@@ -187,13 +213,23 @@ export function reduce(state: ChamberState, ev: ChamberEvent): ChamberState {
       }
       return s;
     case "task_updated": {
-      s.tasks = { ...s.tasks, [p.part]: { title: p.title, owner: p.owner_seat, status: p.status } };
-      // A seat's badge shows the parts the council voted it into.
-      s.seats = s.seats.map((seat) => {
-        const mine = Object.values(s.tasks).filter((t) => t.owner === seat.letter).map((t) => t.title);
-        const role = mine.length ? (mine.length > 1 ? `${mine[0]} +${mine.length - 1}` : mine[0]) : null;
-        return seat.role === role ? seat : { ...seat, role };
-      });
+      const prev = s.tasks[p.part];
+      s.tasks = {
+        ...s.tasks,
+        [p.part]: {
+          id: p.part,
+          kind: p.kind ?? "part",
+          title: p.title,
+          owner: p.owner_seat ?? null,
+          reviewer: p.reviewer_seat ?? prev?.reviewer ?? null,
+          status: p.status,
+          files: p.files ?? prev?.files ?? [],
+          dependsOn: p.depends_on ?? prev?.dependsOn ?? [],
+          workstream: p.workstream ?? prev?.workstream ?? null,
+          question: p.question ?? prev?.question ?? null,
+        },
+      };
+      s.seats = badges(s.seats, s.tasks);
       return s;
     }
     case "artifact_created":
@@ -209,7 +245,7 @@ export function reduce(state: ChamberState, ev: ChamberEvent): ChamberState {
       } else {
         s.checkpoint = p as unknown as Checkpoint;
         s.status = "checkpoint";
-        s.live = null;
+        s.live = {};
         s.seats = s.seats.map((x) => (x.status === "absent" ? x : { ...x, status: "idle" }));
       }
       return s;
@@ -235,6 +271,17 @@ export function reduce(state: ChamberState, ev: ChamberEvent): ChamberState {
         removed: p.lines_removed, lines: p.lines ?? [],
       };
       s.diffs = [...s.diffs, diff].slice(-MAX_DIFFS);
+      const f = s.files[p.file];
+      s.files = {
+        ...s.files,
+        [p.file]: {
+          seat: p.seat,
+          versions: (f?.versions ?? 0) + 1,
+          added: (f?.added ?? 0) + p.lines_added,
+          removed: (f?.removed ?? 0) + p.lines_removed,
+        },
+      };
+      if (String(p.file).startsWith("site/")) s.siteVersion += 1;
       return s;
     }
     default:

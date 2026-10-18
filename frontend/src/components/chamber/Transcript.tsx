@@ -9,7 +9,7 @@ import { CLIENT, MODERATOR, Message, STANCE_COLOUR, STANCE_LABEL } from "@/lib/c
 type Props = {
   seats: SeatView[];
   messages: Message[];
-  live: { seat: string; text: string } | null;
+  live: Record<string, string>;
   thinking: string | null;
   tally: Record<string, number>;
   scores: Record<string, number[]>;
@@ -43,12 +43,13 @@ export default function Transcript({ seats, messages, live, thinking, tally, sco
   const seatOf = (letter: string) => seats.find((s) => s.letter === letter);
   const byId = new Map(messages.map((m) => [m.id, m]));
 
+  const liveLength = Object.values(live).reduce((n, text) => n + text.length, 0);
   useEffect(() => {
     const el = scroller.current;
     if (!el) return;
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200;
     if (nearBottom) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  }, [messages.length, live?.text]);
+  }, [messages.length, liveLength]);
 
   const header = (letter: string, extra?: React.ReactNode) => {
     if (letter === MODERATOR) return <span className="text-[12px] font-medium text-white/85">Moderator</span>;
@@ -86,7 +87,7 @@ export default function Transcript({ seats, messages, live, thinking, tally, sco
 
   return (
     <div ref={scroller} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
-      {messages.length === 0 && !live && (
+      {messages.length === 0 && Object.keys(live).length === 0 && (
         <p className="pt-10 text-center text-[13px] text-white/30">The council is taking its seats…</p>
       )}
       {messages.map((m) => {
@@ -121,6 +122,7 @@ export default function Transcript({ seats, messages, live, thinking, tally, sco
         const target = m.reply_to ? byId.get(m.reply_to) : null;
         const opts = m.proposal?.options as OptionItem[] | undefined;
         const nominated = m.proposal?.parts as string[] | undefined;
+        const wrote = m.proposal?.files as string[] | undefined;
         const work = m.stance === "report";
         return (
           <motion.div
@@ -169,7 +171,14 @@ export default function Transcript({ seats, messages, live, thinking, tally, sco
                 {nominated.length ? `Puts itself forward for ${nominated.join(", ")}` : "Would rather review"}
               </div>
             )}
-            {m.proposal && !opts && !nominated && (
+            {Array.isArray(wrote) && (
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {wrote.map((f) => (
+                  <span key={f} className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-[10.5px] text-white/60">{f}</span>
+                ))}
+              </div>
+            )}
+            {m.proposal && !opts && !nominated && !wrote && !m.proposal.question && (
               <div className="mt-2 rounded border px-2.5 py-1.5 text-[12px]" style={{ borderColor: `${colour}33`, background: `${colour}0d` }}>
                 <span className="font-medium" style={{ color: colour }}>◆ {String(m.proposal.title ?? "Proposal")}</span>
                 {m.proposal.summary ? <span className="text-white/60"> — {String(m.proposal.summary)}</span> : null}
@@ -192,21 +201,21 @@ export default function Transcript({ seats, messages, live, thinking, tally, sco
           </motion.div>
         );
       })}
-      {live && (
-        <div className="relative rounded-md bg-white/[0.04] py-2 pl-3.5 pr-3">
+      {Object.entries(live).map(([seat, text]) => (
+        <div key={`live-${seat}`} className="relative rounded-md bg-white/[0.04] py-2 pl-3.5 pr-3">
           <span
             className="absolute inset-y-1.5 left-0 w-[3px] animate-pulse rounded-full"
-            style={{ background: live.seat === MODERATOR ? "#fff" : seatOf(live.seat)?.colour }}
+            style={{ background: seat === MODERATOR ? "#fff" : seatOf(seat)?.colour }}
           />
-          <div className="mb-1">{header(live.seat)}</div>
+          <div className="mb-1">{header(seat)}</div>
           <p className="max-h-48 overflow-hidden whitespace-pre-wrap text-[13px] leading-relaxed text-white/70">
-            {live.text.length > 600 ? "…" + live.text.slice(-600) : live.text || (
-              <span className="text-white/35">{thinking === live.seat ? "thinking…" : ""}</span>
+            {text.length > 600 ? "…" + text.slice(-600) : text || (
+              <span className="text-white/35">{thinking === seat || !text ? "thinking…" : ""}</span>
             )}
             <span className="ml-0.5 inline-block h-3.5 w-[2px] translate-y-0.5 animate-pulse bg-white/60" />
           </p>
         </div>
-      )}
+      ))}
     </div>
   );
 }

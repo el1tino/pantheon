@@ -86,7 +86,7 @@ class Script:
         self.goal = m.group(1) if m else ""
         m = re.search(r"seat ([A-M]) on the", system)
         self.letter = m.group(1) if m else "?"
-        step = re.search(r"STEP: ([A-Z ]+?)(?: (p\d+))?\.", user)
+        step = re.search(r"STEP: ([A-Z ]+?)(?: ([pt]\d+))?\.", user)
         self.step = step.group(1).strip() if step else ""
         self.part = step.group(2) if step else None
         self.rng = _rng(self.goal, self.letter, self.step, self.part)
@@ -104,7 +104,8 @@ class Script:
         handler = {
             "OPTIONS": self.options, "SCORE": self.score, "NOMINATE": self.nominate,
             "ROLE VOTE": self.role_vote, "WRITE PART": self.write_part, "CRITIQUE": self.critique,
-            "REVISE PART": self.revise_part,
+            "REVISE PART": self.revise_part, "BUILD TASK": self.build_task,
+            "REVISE TASK": self.revise_task, "REVIEW TASK": self.review_task, "ANSWER": self.answer,
         }.get(self.step)
         if handler:
             return handler()
@@ -144,7 +145,7 @@ class Script:
         return self._json("vote", None, f"{best} is the strongest: clear, specific and doable.", votes=votes)
 
     def nominate(self) -> str:
-        ids = re.findall(r"^- (p\d+):", self.user, re.M)
+        ids = re.findall(r"^- ([pw]\d+):", self.user, re.M)
         picks = [i for i in ids if self.rng.random() < 0.45][:2]
         pitch = ("I'm strongest at clear structure and concrete detail." if picks
                  else "I'll sit this one out and review instead.")
@@ -152,7 +153,7 @@ class Script:
 
     def role_vote(self) -> str:
         votes = []
-        for pid, cands in re.findall(r"^- (p\d+) \([^)]*\): ([A-M](?:, [A-M])*)", self.user, re.M):
+        for pid, cands in re.findall(r"^- ([pw]\d+) \([^)]*\): ([A-M](?:, [A-M])*)", self.user, re.M):
             options = cands.split(", ")
             votes.append({"part": pid, "target": options[_rng(self.goal, pid).randrange(len(options))]})
         return self._json("vote", None, "Voting for whoever pitched the most concrete approach.", votes=votes)
@@ -200,6 +201,68 @@ class Script:
     def compared(self) -> list[str]:
         m = re.search(r"Comparing: (.+?)(?:\. Criteria:|\.?$)", self.user, re.M)
         return [n.strip() for n in m.group(1).split(",")] if m else []
+
+    # ------------------------------------------------------------ building
+
+    def plan(self) -> str:
+        ws = re.findall(r"^- (w\d+): ([^(]+?) \(lead", self.user, re.M)
+        ids = [w for w, _ in ws] or ["w1"]
+        pick = lambda i: ids[min(i, len(ids) - 1)]
+        if "launch kit" in self.user or "landing page (static site)" in self.user:
+            tasks = [
+                {"id": "t1", "title": "Landing page", "workstream": pick(0), "brief": "Hero, features, signup.",
+                 "files": ["site/index.html", "site/styles.css", "site/script.js"], "depends_on": []},
+                {"id": "t2", "title": "Marketing copy and launch plan", "workstream": pick(1),
+                 "brief": "Taglines, posts, 30-day plan.", "files": ["docs/marketing-copy.md", "docs/launch-plan.md"],
+                 "depends_on": []},
+                {"id": "t3", "title": "Business plan and pitch", "workstream": pick(2), "brief": "Lean plan, deck text.",
+                 "files": ["docs/business-plan.md", "docs/pitch-deck.md"], "depends_on": ["t2"]},
+            ]
+        else:
+            tasks = [
+                {"id": "t1", "title": "Copy", "workstream": pick(0), "brief": "Headline and sections.",
+                 "files": ["docs/copy.md"], "depends_on": []},
+                {"id": "t2", "title": "Page structure", "workstream": pick(1), "brief": "The page itself.",
+                 "files": ["site/index.html"], "depends_on": ["t1"]},
+                {"id": "t3", "title": "Styling", "workstream": pick(2), "brief": "The look.",
+                 "files": ["site/styles.css"], "depends_on": ["t2"]},
+                {"id": "t4", "title": "Interactivity", "workstream": pick(3), "brief": "Signup and reveals.",
+                 "files": ["site/script.js"], "depends_on": ["t2"]},
+            ]
+        return json.dumps({"tasks": tasks})
+
+    def _files_reply(self, stance: str, content: str, revised: bool, reply_to: str | None = None) -> str:
+        listed = (re.search(r"Write: ([^\n]+?)\.\n", self.user)
+                  or re.search(r'Revise task t\d+ "[^"]*" \(([^)]*)\)', self.user))
+        paths = [p.strip() for p in (listed.group(1) if listed else "").split(",") if "/" in p]
+        title, summary = _idea_from(self.user)
+        head = self._json(stance, reply_to, content)
+        blocks = "".join(f"=== FILE: {p} ===\n{site_file(p, title, summary, revised)}\n=== END FILE ===\n" for p in paths)
+        return head + "\n" + blocks
+
+    def build_task(self) -> str:
+        can_ask = "You can ask once." in self.user and "ANSWER to your question" not in self.user
+        if can_ask and "docs/copy.md" not in self.user.split("FILES YOU CAN SEE")[0] and self.rng.random() < 0.3:
+            lead = re.findall(r"owner ([A-M]),", self.user)
+            to = next((x for x in lead if x != self.letter), "A")
+            return self._json("question", None, "Before I start: which section should lead the page?",
+                              proposal={"to": to, "question": "Which section should lead the page, and what tone?"})
+        return self._files_reply("report", "Built my part of the site to match the plan.", revised=False)
+
+    def revise_task(self) -> str:
+        m = re.search(r'reply_to "(m\d+)"', self.user)
+        return self._files_reply("report", "Applied the review: tightened the copy and fixed the details.",
+                                 revised=True, reply_to=m.group(1) if m else None)
+
+    def review_task(self) -> str:
+        final = "final review round" in self.user
+        if not final and self.rng.random() < 0.5:
+            return self._json("challenge", None, 'The hero needs proof: add a short customer quote under '
+                              '"Join the waitlist" and make the accent colour warmer.')
+        return self._json("agree", None, "Looks good: it matches the plan, links the other files and reads clearly.")
+
+    def answer(self) -> str:
+        return self._json("report", None, "Lead with the hero and the waitlist; keep the tone warm and direct.")
 
     def proposals(self) -> list[tuple[str, str]]:
         return [(mid, seat) for mid, seat, stance, _ in self.entries
@@ -277,6 +340,22 @@ class Script:
             return json.dumps({"options": names, "criteria": ["Price", "Quality", "Fit for the client"]})
         if self.step == "VERDICT":
             return self.verdict()
+        if self.step == "WORKSTREAMS":
+            if "launch kit" in self.user:
+                ws = [("Website", "The landing page."), ("Copy and launch plan", "Copy and a launch plan."),
+                      ("Business plan and pitch", "Plan and pitch deck text.")]
+            else:
+                ws = [("Copy", "The words on the page."), ("Page structure", "The HTML."),
+                      ("Styling", "The CSS."), ("Interactivity", "The JavaScript.")]
+            return json.dumps({"workstreams": [{"title": a, "brief": b} for a, b in ws]})
+        if self.step == "PLAN":
+            return self.plan()
+        if self.step == "TIEBREAK":
+            tied = re.findall(r"^- ([A-M]) \(", self.user, re.M)
+            return json.dumps({"winner": tied[0] if tied else "A", "reason": "The most concrete pitch."})
+        if self.step == "ROUTE CHANGES":
+            site = re.findall(r"^- (t\d+): [^(]*\(([^)]*site/[^)]*)\)", self.user, re.M)
+            return json.dumps({"tasks": [tid for tid, _ in site][:2]})
         if "vote is tied" in self.user:
             first = re.findall(r"- (m\d+) by", self.user)[0]
             return json.dumps({"winner": first, "reason": "It drew the fewest unanswered objections."})
@@ -292,6 +371,15 @@ class Script:
 
     def verdict(self) -> str:
         work = self.user.split("STEP: VERDICT", 1)[0]
+        if "WHAT THE COUNCIL BUILT" in work:
+            title, summary = _idea_from(self.user)
+            built = re.findall(r"^- t\d+ ([^:]+): ([^(]+) \(built by ([A-M]), reviewed by ([A-M])", work, re.M)
+            rows = "\n".join(f"| {files.strip()} | {name} | {by} | {rev} |" for name, files, by, rev in built)
+            kit = "launch kit" if "docs/business-plan.md" in work else "site"
+            return (f"# {title}\n\n{summary}\n\n## What the council built\n\n| Files | Task | Built by | "
+                    f"Reviewed by |\n|---|---|---|---|\n{rows}\n\n## How to open it\n\nOpen the Vault and "
+                    f"choose **Preview**, or download `site/index.html` with its CSS and JS files and open it "
+                    f"in a browser. The {kit} is plain HTML, CSS and JavaScript, with no server needed.\n")
         sections = re.findall(r"^### p\d+: (.+?) \(by [A-M]\)\n(.*?)(?=^### p\d+:|\Z)", work, re.M | re.S)
         decided = re.search(r"The council's decision: ([^.\n]+)", self.user)
         heading = f"# {_keyword(self.goal)}: the council's result"
@@ -312,6 +400,100 @@ class Script:
                 f"people the council recommends starting small and checking one number first.\n\n"
                 "**Why:** members agreed the simplest option is the most likely to work; one member "
                 "felt the cost was underestimated.\n\n_This is not professional advice._\n")
+
+
+def _idea_from(user: str) -> tuple[str, str]:
+    m = re.search(r"Chosen direction: ([^:\n]+): ([^\n]*)", user)
+    return (m.group(1).strip(), m.group(2).strip()) if m else ("Our project", "A small, friendly website.")
+
+
+def site_file(path: str, title: str, summary: str, revised: bool = False) -> str:
+    """A small but real static site, so the preview shows something that works."""
+    features = [("Made for you", "Built around one clear job, done well."),
+                ("Fast to start", "No setup. Open it and go."),
+                ("Fair pricing", "Free to try, simple when you grow.")]
+    if path.endswith("index.html"):
+        extra = ('\n    <section class="quote reveal"><blockquote>"Exactly what I needed, without the fuss."'
+                 "</blockquote><p>— an early user</p></section>") if revised else ""
+        cards = "\n".join(f'      <article class="card reveal"><h3>{h}</h3><p>{p}</p></article>' for h, p in features)
+        return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{title}</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <header class="nav"><span class="brand">{title}</span><a href="#join" class="nav-cta">Get early access</a></header>
+  <main>
+    <section class="hero">
+      <h1>{title}</h1>
+      <p class="lead">{summary}</p>
+      <button id="cta" class="button">Join the waitlist</button>
+    </section>
+    <section class="grid">
+{cards}
+    </section>{extra}
+    <section id="join" class="join reveal">
+      <h2>Be first in line</h2>
+      <form id="signup"><input type="email" placeholder="you@example.com" required><button class="button">Notify me</button></form>
+    </section>
+  </main>
+  <footer>© <span id="year"></span> {title}</footer>
+  <div id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>"""
+    if path.endswith(".css"):
+        accent = "#ff8a5b" if revised else "#7c6cf2"
+        return f""":root {{ --bg: #0f1020; --text: #f4f2ee; --muted: #a9a8b8; --accent: {accent}; }}
+* {{ box-sizing: border-box; }}
+body {{ margin: 0; font-family: system-ui, sans-serif; background: radial-gradient(circle at 50% 0%, #23244a, var(--bg) 60%); color: var(--text); }}
+.nav {{ display: flex; justify-content: space-between; align-items: center; padding: 20px 6vw; }}
+.brand {{ font-weight: 700; letter-spacing: .04em; }}
+.nav-cta {{ color: var(--text); opacity: .8; text-decoration: none; }}
+.hero {{ text-align: center; padding: 12vh 6vw 8vh; }}
+.hero h1 {{ font-size: clamp(2.4rem, 6vw, 4.4rem); margin: 0 0 16px; }}
+.lead {{ color: var(--muted); font-size: 1.2rem; max-width: 640px; margin: 0 auto 32px; }}
+.button {{ background: var(--accent); color: white; border: 0; border-radius: 999px; padding: 14px 28px; font-size: 1rem; cursor: pointer; }}
+.grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; padding: 0 6vw 10vh; }}
+.card {{ background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-radius: 16px; padding: 24px; }}
+.card p, footer {{ color: var(--muted); }}
+.quote {{ text-align: center; padding: 0 6vw 8vh; font-size: 1.3rem; }}
+.join {{ text-align: center; padding: 6vh 6vw 10vh; }}
+.join form {{ display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }}
+.join input {{ padding: 14px 18px; border-radius: 999px; border: 1px solid rgba(255,255,255,.2); background: transparent; color: var(--text); min-width: 260px; }}
+footer {{ text-align: center; padding: 30px; }}
+.reveal {{ opacity: 0; transform: translateY(16px); transition: all .6s ease; }}
+.reveal.shown {{ opacity: 1; transform: none; }}
+#toast {{ position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1e1f3a; padding: 12px 20px; border-radius: 12px; opacity: 0; transition: opacity .3s; }}
+#toast.on {{ opacity: 1; }}"""
+    if path.endswith(".js"):
+        return """const toast = document.getElementById("toast");
+function say(text) {
+  toast.textContent = text;
+  toast.classList.add("on");
+  setTimeout(() => toast.classList.remove("on"), 2200);
+}
+document.getElementById("year").textContent = new Date().getFullYear();
+document.getElementById("cta").addEventListener("click", () => {
+  document.getElementById("join").scrollIntoView({ behavior: "smooth" });
+});
+document.getElementById("signup").addEventListener("submit", (event) => {
+  event.preventDefault();
+  say("Thanks! You're on the list.");
+  event.target.reset();
+});
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach((e) => { if (e.isIntersecting) e.target.classList.add("shown"); });
+}, { threshold: 0.15 });
+document.querySelectorAll(".reveal").forEach((el) => observer.observe(el));"""
+    name = path.rsplit("/", 1)[-1].replace("-", " ").replace(".md", "").capitalize()
+    body = (f"# {name}: {title}\n\n{summary}\n\n## Key points\n\n"
+            "- Who it is for and the one job it does.\n- Why now, and why us.\n"
+            "- The first milestone and how we will know it worked.\n")
+    return body + ("\n## Revised\n\nTightened after review.\n" if revised else "")
 
 
 def reply(system: str, user: str) -> str:

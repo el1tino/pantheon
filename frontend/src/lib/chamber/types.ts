@@ -53,10 +53,39 @@ export type PickOption = {
   votes: number;
 };
 
+export type PlanTask = {
+  id: string;
+  title: string;
+  workstream: string;
+  brief: string;
+  files: string[];
+  depends_on: string[];
+  owner: string | null;
+  reviewer: string | null;
+};
+
+export type PlanWorkstream = { id: string; title: string; brief: string; lead: string | null; votes: number };
+
 export type Checkpoint =
   | { kind: "budget"; spent: number; cap: number; estimate: number }
   | { kind: "pick"; phase: string; options: PickOption[]; can_retry: boolean }
-  | { kind: "review"; phase: string; title: string; content: string; path: string };
+  | { kind: "review"; phase: string; title: string; content: string; path: string; preview?: string | null; files?: string[] }
+  | { kind: "plan"; phase: string; workstreams: PlanWorkstream[]; tasks: PlanTask[]; seats: string[] };
+
+export type TaskView = {
+  id: string;
+  kind: "task" | "workstream" | "part";
+  title: string;
+  owner: string | null;
+  reviewer: string | null;
+  status: string;
+  files: string[];
+  dependsOn: string[];
+  workstream: string | null;
+  question: { to: string; text: string; answer?: string } | null;
+};
+
+export type FileView = { seat: string; versions: number; added: number; removed: number };
 
 export type Deliverable = { title: string; content: string; path: string };
 

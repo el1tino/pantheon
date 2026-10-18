@@ -198,6 +198,8 @@ Everything a run does is stored as rows in one SQLite database, so any model can
 }
 ```
 
+**Files in the build phase.** Whole files inside a JSON string break too often (escaping, cut-off replies), so a build reply is the JSON object first, followed by plain file blocks: a line `=== FILE: site/index.html ===`, the complete file, then `=== END FILE ===`. Paths must stay under `site/` or `docs/` in the run folder, only text file types (html, css, js, md, json, svg, txt) are allowed, and each file has a size limit. A cut-off block counts as an invalid reply and is retried once.
+
 **Live events.** The backend pushes events to the browser over one WebSocket per run. Event types: phase_changed, seat_thinking, token (streamed text), message_done, vote_cast, task_updated, artifact_created, cost_updated, checkpoint_opened, checkpoint_resolved. The UI animates purely from these events, which is also how Replay and Demo mode work: they re-send stored events on a timer.
 
 Two more event types drive the Chamber's effects. message_routed (from seat, to seat or "all", stance) draws the communication lines, ripples and vote beams. diff_applied (seat, file, lines added, lines removed) fires the build arrow and updates the core's + and − counters and the diff feed.

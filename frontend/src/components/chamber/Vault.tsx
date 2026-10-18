@@ -1,0 +1,128 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import Markdown from "@/components/Markdown";
+import { TreeFile, fileText, runTree } from "@/lib/api";
+import { SeatView } from "@/lib/chamber/reducer";
+import { FileView, MODERATOR } from "@/lib/chamber/types";
+import SitePreview from "./SitePreview";
+
+type Props = {
+  runId: string;
+  files: Record<string, FileView>;
+  seats: SeatView[];
+  siteVersion: number;
+  onClose: () => void;
+};
+
+const PREVIEW = "__preview__";
+const HIDDEN = new Set(["transcript.json"]);
+
+/** Everything the run produced: the site preview, code with line numbers, and documents. */
+export default function Vault({ runId, files, seats, siteVersion, onClose }: Props) {
+  const [tree, setTree] = useState<TreeFile[]>([]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [text, setText] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
+  const changes = Object.values(files).reduce((n, f) => n + f.versions, 0);
+
+  useEffect(() => {
+    runTree(runId).then((t) => setTree(t.filter((f) => !HIDDEN.has(f.path)))).catch((e) => setError(String(e)));
+  }, [runId, changes]);
+
+  const hasSite = tree.some((f) => f.path === "site/index.html");
+  const current = selected ?? (hasSite ? PREVIEW : tree.find((f) => f.path.startsWith("docs/"))?.path ?? tree[0]?.path ?? null);
+
+  const currentVersion = files[current ?? ""]?.versions ?? 0;
+  useEffect(() => {
+    if (!current || current === PREVIEW) return;
+    let cancelled = false;
+    fileText(runId, current)
+      .then((t) => !cancelled && setText(t))
+      .catch((e) => !cancelled && setText(`Could not load: ${e}`));
+    return () => {
+      cancelled = true;
+    };
+  }, [runId, current, currentVersion]);
+
+  const groups = useMemo(() => {
+    const g = new Map<string, TreeFile[]>();
+    for (const f of tree) {
+      const dir = f.path.includes("/") ? f.path.slice(0, f.path.lastIndexOf("/")) : "";
+      g.set(dir, [...(g.get(dir) ?? []), f]);
+    }
+    return [...g.entries()].sort(([a], [b]) => (a === "site" ? -1 : b === "site" ? 1 : a.localeCompare(b)));
+  }, [tree]);
+
+  const colourOf = (l?: string) => (l === MODERATOR ? "#fff" : seats.find((s) => s.letter === l)?.colour ?? "#666");
+  const isMd = current?.endsWith(".md");
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 20 }}
+      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      className="absolute inset-3 z-40 flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0b0b0f]/95 shadow-2xl backdrop-blur"
+    >
+      <div className="flex items-center gap-3 border-b border-white/[0.07] px-5 py-3">
+        <span className="text-[10px] uppercase tracking-[0.3em] text-white/50">The Vault</span>
+        <span className="text-[12px] text-white/35">{tree.length} files</span>
+        {current && current !== PREVIEW && (
+          <a href={`/api/runs/${runId}/files/${current}`} className="ml-4 text-[12px] text-white/50 hover:text-white">Download {current.split("/").pop()}</a>
+        )}
+        <button onClick={onClose} className="ml-auto text-[12px] text-white/45 hover:text-white">Close</button>
+      </div>
+      <div className="flex min-h-0 flex-1">
+        <nav className="w-60 shrink-0 overflow-y-auto border-r border-white/[0.06] p-2 text-[12.5px]">
+          {hasSite && (
+            <button
+              onClick={() => setSelected(PREVIEW)}
+              className={`mb-2 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left ${current === PREVIEW ? "bg-amber-200/10 text-amber-100" : "text-white/70 hover:bg-white/[0.04]"}`}
+            >
+              <span className="text-amber-200">▶</span> Live preview
+            </button>
+          )}
+          {groups.map(([dir, items]) => (
+            <div key={dir} className="mb-2">
+              <div className="px-2 py-1 text-[10.5px] uppercase tracking-[0.15em] text-white/30">{dir || "run"}</div>
+              {items.map((f) => {
+                const info = files[f.path];
+                return (
+                  <button
+                    key={f.path}
+                    onClick={() => setSelected(f.path)}
+                    className={`flex w-full items-center gap-2 rounded-md px-2 py-1 text-left font-mono text-[11.5px] ${current === f.path ? "bg-white/[0.08] text-white" : "text-white/60 hover:bg-white/[0.04]"}`}
+                  >
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: colourOf(info?.seat) }} />
+                    <span className="truncate">{f.path.split("/").pop()}</span>
+                    {info && info.versions > 1 && <span className="ml-auto text-[10px] text-white/30">v{info.versions}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+          {error && <p className="px-2 text-[11px] text-red-300">{error}</p>}
+        </nav>
+        <div className="min-w-0 flex-1 overflow-auto p-4">
+          {!current && <p className="text-[13px] text-white/35">Nothing has been written yet.</p>}
+          {current === PREVIEW && <SitePreview runId={runId} version={siteVersion} />}
+          {current && current !== PREVIEW && isMd && (
+            <div className="mx-auto max-w-3xl text-[14px] text-white/80"><Markdown text={text} /></div>
+          )}
+          {current && current !== PREVIEW && !isMd && (
+            <pre className="font-mono text-[12px] leading-[1.6] text-white/80">
+              {text.split("\n").map((line, i) => (
+                <div key={i} className="flex">
+                  <span className="mr-4 w-8 shrink-0 select-none text-right text-white/25">{i + 1}</span>
+                  <span className="whitespace-pre-wrap break-all">{line || " "}</span>
+                </div>
+              ))}
+            </pre>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}

@@ -25,6 +25,7 @@ from typing import Any
 from app.config import APP_NAME, get_settings
 from app.db import Task, Vote
 from app.orchestrator import sandbox
+from app.orchestrator.building import BuildMixin
 from app.orchestrator.debate import (
     CLIENT,
     MODERATOR,
@@ -195,11 +196,26 @@ MISSIONS: dict[str, Mission] = {
             ),
         ),
         Mission(
-            "build", "Build", "Apps, websites, scripts",
-            "Mission: BUILD.", "Working code",
-            (Phase("ideas", "Ideas"), Phase("roles", "Roles"), Phase("build", "Build"),
-             Phase("integrate", "Integrate")),
-            available=False,
+            "build", "Build", "Websites and small web apps",
+            "Mission: BUILD. The client wants a working website or small web app, built as real files.",
+            "Site README",
+            (
+                Phase("ideas", "Ideas", (Step(
+                    "options", "Propose what to build: a short name and a summary of who it is for, the "
+                    "main sections or features and the look and feel. Keep it small enough to build as a "
+                    "static site (HTML, CSS and JavaScript, no server).",
+                ),)),
+                Phase("roles", "Roles", (Step(
+                    "workstreams", "The council is building a small static website for the chosen idea.",
+                ),)),
+                Phase("build", "Build", (
+                    Step("build"),
+                    Step("verdict", "Write a short README for the site in Markdown: what it is, who it is "
+                                    "for, the files and what each does, and how to open it. Output only the README."),
+                    Step("review"),
+                )),
+                Phase("integrate", "Integrate", available=False),
+            ),
         ),
         Mission(
             "create", "Create", "Logos, illustrations, image sets",
@@ -215,13 +231,25 @@ MISSIONS: dict[str, Mission] = {
                 Phase("ideas", "Ideas", (
                     Step("options", "Propose business ideas: a short name and a summary of the customer, "
                                     "the problem, the product and how it makes money.", options=(2, 3)),
-                    Step("verdict", "Write a one-page brief of the chosen idea in Markdown: name, customer, "
-                                    "problem, product, how it makes money, risks and first steps. End by "
-                                    "noting that research, roles and building are the next phases."),
                 )),
-                Phase("research", "Research", available=False),
-                Phase("roles", "Roles", available=False),
-                Phase("build", "Build", available=False),
+                Phase("research", "Research", (
+                    Step("make", "Split the market research into parts (for example competitors, pricing, "
+                                 "customers and channels). Mark anything you are not sure of as unverified."),
+                    Step("critique", "Challenge weak assumptions and unsupported numbers."),
+                    Step("revise"),
+                )),
+                Phase("roles", "Roles", (Step(
+                    "workstreams", "The council is building the launch kit for the chosen business: a "
+                    "landing page (static site), marketing copy and a launch plan, and a business plan with "
+                    "pitch deck text, using the research.",
+                ),)),
+                Phase("build", "Build", (
+                    Step("build"),
+                    Step("verdict", "Write a launch kit summary in Markdown: the business in two sentences, "
+                                    "what the council built (site and documents) and the first five things "
+                                    "the founder should do. Output only the summary."),
+                    Step("review"),
+                )),
                 Phase("integrate", "Integrate", available=False),
             ),
         ),
@@ -264,7 +292,7 @@ class Part:
     text: str = ""
 
 
-class MissionRun(Debate):
+class MissionRun(BuildMixin, Debate):
     def __init__(self, session, goal: str, seats: list[SeatConfig], *, mission: str = "auto",
                  on_checkpoint: CheckpointFn | None = None, **kwargs):
         super().__init__(session, goal, seats, phase="convene", **kwargs)
@@ -281,6 +309,7 @@ class MissionRun(Debate):
         self.decision: Entry | None = None
         self._seq = {"o": 0, "p": 0}
         self._last_verdict: Step | None = None
+        self._init_build()
 
     # ------------------------------------------------------------ main loop
 
@@ -347,6 +376,8 @@ class MissionRun(Debate):
             "revise": self._step_revise,
             "verdict": self._step_verdict,
             "review": self._step_review,
+            "workstreams": self._step_workstreams,
+            "build": self._step_build,
         }[step.kind]
         await handler(step)
 
@@ -357,7 +388,7 @@ class MissionRun(Debate):
         return f"{prefix}{self._seq[prefix]}"
 
     def _moderator_note(self, round_: str, text: str) -> Entry:
-        self._turn_tokens, self._turn_cost = 0, 0.0
+        self._new_turn()
         return self._add(MODERATOR, round_, AgentReply(stance=Stance.REPORT, content=text), record=False)
 
     def _client_notes(self) -> str:
@@ -395,7 +426,7 @@ class MissionRun(Debate):
             {"role": "user", "content": f"GOAL: {self.goal}\n\n{context}\n\n{label}. {instruction}"},
         ]
         await self._gate()
-        self._turn_tokens, self._turn_cost = 0, 0.0
+        self._new_turn()
         text = await self._call(MODERATOR, self.moderator_model, messages)
         if not text:
             return None
@@ -413,6 +444,8 @@ class MissionRun(Debate):
             answer = await self.on_checkpoint(kind, payload)
         elif kind == "pick":
             answer = {"action": "pick", "option": payload["options"][0]["id"]}
+        elif kind == "plan":
+            answer = {"action": "approve"}
         else:
             answer = {"action": "accept"}
         if answer.get("action") == "stop":
@@ -648,60 +681,81 @@ class MissionRun(Debate):
 
     async def _assign(self, parts: list[Part]) -> None:
         """Seats put themselves forward for parts; the others vote; the winners take them."""
-        present = self._present()
-        ids = [p.id for p in parts]
-        listing = "\n".join(f"- {p.id}: {p.title}. {p.brief}" for p in parts)
+        result = await self._elect([(p.id, p.title, p.brief) for p in parts], what="parts of the work")
+        summary = []
+        for part in parts:
+            owner, n = result[part.id]
+            part.owner = owner
+            task = Task(run_id=self.run_id, title=part.title, owner_seat=owner, status="assigned")
+            self.session.add(task)
+            self.session.commit()
+            part.task_id = task.id
+            self._task_event(part, "assigned", votes=n)
+            summary.append(f"{part.id} {part.title} → {owner}" + (f" ({n} vote{'s' if n != 1 else ''})" if n else ""))
+        self._moderator_note("roles", "Roles by vote: " + "; ".join(summary) + ".")
+
+    async def _elect(
+        self, items: list[tuple[str, str, str]], *, what: str, moderator_tiebreak: bool = False
+    ) -> dict[str, tuple[str, int]]:
+        """Nominate, vote, pick: returns {item id: (winning seat, votes)}.
+
+        Seats put themselves forward with a pitch; every other seat votes (never for itself).
+        Unnominated items are open to every present seat. Ties go to the moderator when
+        moderator_tiebreak is set, otherwise to the seat with the least work so far.
+        """
+        ids = [i for i, _, _ in items]
+        titles = {i: title for i, title, _ in items}
+        listing = "\n".join(f"- {i}: {title}. {brief}" for i, title, brief in items)
         self.log.emit("phase_changed", phase=self.phase, round="nominate")
-        nominees: dict[str, list[str]] = {p.id: [] for p in parts}
-        for seat in present:
+        nominees: dict[str, list[str]] = {i: [] for i in ids}
+        pitches: dict[str, str] = {}
+        for seat in self._present():
             def validate(reply: AgentReply) -> None:
                 if reply.stance != Stance.PROPOSE:
                     raise ReplyError('Use stance "propose".')
                 chosen = (reply.proposal or {}).get("parts")
                 if not isinstance(chosen, list) or any(str(x) not in ids for x in chosen):
-                    raise ReplyError(f'"proposal" must hold "parts": a list of part ids from {ids}.')
+                    raise ReplyError(f'"proposal" must hold "parts": a list of ids from {ids}.')
                 reply.reply_to = None
                 reply.votes = None
 
             entry = await self._ask(
                 seat, "nominate", "STEP: NOMINATE",
-                f"The work is split into these parts:\n{listing}\n"
-                "Put yourself forward for the parts you would do best and say why in one or two "
-                'sentences. Use stance "propose", reply_to null, and "proposal": {"parts": ["p1", ...], '
+                f"The {what}:\n{listing}\n"
+                "Put yourself forward for the ones you would do best and say why in one or two "
+                'sentences. Use stance "propose", reply_to null, and "proposal": {"parts": ["<id>", ...], '
                 '"pitch": "..."}. An empty list means you would rather review.',
                 validate, record=False,
             )
             if entry:
-                for pid in entry.proposal.get("parts", []):
-                    nominees[str(pid)].append(seat.letter)
+                pitches[seat.letter] = str(entry.proposal.get("pitch", "")) or entry.content
+                for i in entry.proposal.get("parts", []):
+                    nominees[str(i)].append(seat.letter)
 
-        def candidates(part: Part) -> list[str]:
+        def candidates(item_id: str) -> list[str]:
             present_letters = [s.letter for s in self._present()]
-            return [x for x in nominees[part.id] if x in present_letters] or present_letters
+            return [x for x in nominees[item_id] if x in present_letters] or present_letters
 
-        contested = [p for p in parts if len(candidates(p)) > 1]
-        votes: dict[str, Counter[str]] = {p.id: Counter() for p in parts}
+        contested = [i for i in ids if len(candidates(i)) > 1]
+        votes: dict[str, Counter[str]] = {i: Counter() for i in ids}
         if contested:
             self.log.emit("phase_changed", phase=self.phase, round="roles")
         for seat in self._present() if contested else []:
-            mine = {p.id: [c for c in candidates(p) if c != seat.letter] for p in contested}
-            mine = {pid: c for pid, c in mine.items() if c}
+            mine = {i: [c for c in candidates(i) if c != seat.letter] for i in contested}
+            mine = {i: c for i, c in mine.items() if c}
             if not mine:
                 continue
-            ballot = "\n".join(
-                f"- {pid} ({next(p.title for p in parts if p.id == pid)}): {', '.join(c)}"
-                for pid, c in mine.items()
-            )
+            ballot = "\n".join(f"- {i} ({titles[i]}): {', '.join(c)}" for i, c in mine.items())
 
             def validate(reply: AgentReply, mine=mine) -> None:
                 if reply.stance != Stance.VOTE:
                     raise ReplyError('Use stance "vote".')
                 got = {v.part: v.target.strip().upper() for v in reply.votes or [] if v.part}
                 if set(got) != set(mine):
-                    raise ReplyError(f"Vote once for each part: {', '.join(mine)}.")
-                for pid, target in got.items():
-                    if target not in mine[pid]:
-                        raise ReplyError(f"For {pid} pick one of {', '.join(mine[pid])} (not yourself).")
+                    raise ReplyError(f"Vote once for each of: {', '.join(mine)}.")
+                for i, target in got.items():
+                    if target not in mine[i]:
+                        raise ReplyError(f"For {i} pick one of {', '.join(mine[i])} (not yourself).")
                 reply.votes = [v.model_copy(update={"target": v.target.strip().upper()}) for v in reply.votes
                                if v.part in mine]
                 reply.reply_to = None
@@ -709,9 +763,9 @@ class MissionRun(Debate):
 
             entry = await self._ask(
                 seat, "roles", "STEP: ROLE VOTE",
-                f"Vote for who should do each part. Candidates per part:\n{ballot}\n"
-                'You cannot vote for yourself. Use stance "vote" and "votes": [{"part": "<part id>", '
-                '"target": "<seat letter>"}], one per part listed, and say why briefly in content.',
+                f"Vote for who should take each one. Candidates:\n{ballot}\n"
+                'You cannot vote for yourself. Use stance "vote" and "votes": [{"part": "<id>", '
+                '"target": "<seat letter>"}], one per item listed, and say why briefly in content.',
                 validate, record=False,
             )
             for v in (entry.votes if entry else None) or []:
@@ -723,20 +777,35 @@ class MissionRun(Debate):
             self.session.commit()
 
         load: Counter[str] = Counter()
-        summary = []
-        for part in parts:
-            cands = candidates(part)
-            owner = max(cands, key=lambda c: (votes[part.id][c], -load[c], -cands.index(c)))
+        result: dict[str, tuple[str, int]] = {}
+        for i in ids:
+            cands = candidates(i)
+            top = max(votes[i][c] for c in cands)
+            tied = [c for c in cands if votes[i][c] == top]
+            owner = None
+            if len(tied) > 1 and moderator_tiebreak and top > 0:
+                owner = await self._moderator_tiebreak(i, titles[i], tied, pitches)
+            if owner is None:
+                owner = max(tied, key=lambda c: (-load[c], -cands.index(c)))
             load[owner] += 1
-            part.owner = owner
-            task = Task(run_id=self.run_id, title=part.title, owner_seat=owner, status="assigned")
-            self.session.add(task)
-            self.session.commit()
-            part.task_id = task.id
-            self._task_event(part, "assigned", votes=votes[part.id][owner])
-            n = votes[part.id][owner]
-            summary.append(f"{part.id} {part.title} → {owner}" + (f" ({n} vote{'s' if n != 1 else ''})" if n else ""))
-        self._moderator_note("roles", "Roles by vote: " + "; ".join(summary) + ".")
+            result[i] = (owner, votes[i][owner])
+        return result
+
+    async def _moderator_tiebreak(self, item_id: str, title: str, tied: list[str],
+                                  pitches: dict[str, str]) -> str | None:
+        lines = "\n".join(f"- {c} ({self.seat_by_letter[c].name}): {pitches.get(c, '(no pitch)')}" for c in tied)
+        data = await self._moderator_json(
+            "STEP: TIEBREAK",
+            f'The vote for {item_id} "{title}" is tied between:\n{lines}\nPick the best fit. Reply with '
+            'only JSON: {"winner": "<seat letter>", "reason": "<one sentence>"}',
+            self._direction() or "",
+        )
+        winner = str((data or {}).get("winner", "")).strip().upper()
+        if winner in tied:
+            self._moderator_note("roles", f"Tie on {title} broken by the moderator: {winner}. "
+                                          f"{(data or {}).get('reason', '')}".strip())
+            return winner
+        return None
 
     def _task_event(self, part: Part, status: str, **extra: Any) -> None:
         if part.task_id:
@@ -871,7 +940,9 @@ class MissionRun(Debate):
         await self._gate()
         self._last_verdict = step
         self.log.emit("phase_changed", phase=self.phase, round="verdict")
-        if self.parts:
+        if self.build_tasks:
+            work = self._build_summary()
+        elif self.parts:
             work = f"THE WORK, PART BY PART:\n{self._parts_text()}"
         else:
             work = f"TRANSCRIPT:\n{self._transcript_text()}"
@@ -883,7 +954,7 @@ class MissionRun(Debate):
                                         f"STEP: VERDICT. {step.brief} Output only the final Markdown, "
                                         "with no preamble."},
         ]
-        self._turn_tokens, self._turn_cost = 0, 0.0
+        self._new_turn()
         text = await self._call(MODERATOR, self.moderator_model, messages, stream="text",
                                 max_tokens=get_settings().verdict_max_tokens)
         if not text:
@@ -899,15 +970,20 @@ class MissionRun(Debate):
 
     async def _step_review(self, step: Step) -> None:
         for _ in range(MAX_CHANGE_REQUESTS + 1):
+            preview = "site/index.html" if "site/index.html" in self._written else None
             answer = await self._checkpoint(
                 "review", path="deliverable.md", title=self.mission.deliverable if self.mission else "Result",
-                content=self.deliverable,
+                content=self.deliverable, preview=preview,
+                files=sorted(self._written),
             )
             if answer.get("action") != "changes":
                 return
             note = str(answer.get("note", "")).strip() or "Please improve it."
             self.add_client_message(f"Changes requested: {note}")
-            await self._step_revise(step, force=True)
+            if self.build_tasks:
+                await self._revise_build(note)
+            else:
+                await self._step_revise(step, force=True)
             await self._step_verdict(self._last_verdict or Step("verdict"))
 
 

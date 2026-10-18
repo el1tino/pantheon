@@ -5,7 +5,7 @@ from typing import Literal
 
 from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, Response
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
@@ -198,9 +198,11 @@ def answer_budget(run_id: str, body: BudgetIn) -> dict:
 
 
 class CheckpointIn(BaseModel):
-    action: Literal["pick", "another_round", "accept", "changes"]
+    action: Literal["pick", "another_round", "accept", "changes", "approve"]
     option: str | None = None
     note: str | None = Field(default=None, max_length=2000)
+    # plan checkpoint: {task id: {"owner": "B", "reviewer": "C"}}
+    assignments: dict[str, dict[str, str]] | None = None
 
 
 @app.post("/api/runs/{run_id}/checkpoint")
@@ -215,6 +217,20 @@ def answer_checkpoint(run_id: str, body: CheckpointIn) -> dict:
                 raise HTTPException(status_code=422, detail="Pick one of the options shown")
         elif body.action != "another_round" or not payload.get("can_retry"):
             raise HTTPException(status_code=422, detail="Pick an option")
+    elif kind == "plan":
+        if body.action != "approve":
+            raise HTTPException(status_code=422, detail="Approve the plan (with any swaps)")
+        tasks = {task["id"]: task for task in payload["tasks"]}
+        seats = set(payload["seats"])
+        for tid, change in (body.assignments or {}).items():
+            if tid not in tasks:
+                raise HTTPException(status_code=422, detail=f"Unknown task {tid}")
+            owner = (change.get("owner") or tasks[tid]["owner"] or "").upper()
+            reviewer = (change.get("reviewer") or tasks[tid]["reviewer"] or "").upper()
+            if owner not in seats or reviewer not in seats:
+                raise HTTPException(status_code=422, detail=f"{tid}: pick seats that are at the table")
+            if owner == reviewer:
+                raise HTTPException(status_code=422, detail=f"{tid}: the reviewer must be a different seat")
     elif kind == "review":
         if body.action not in ("accept", "changes"):
             raise HTTPException(status_code=422, detail="Accept or request changes")
@@ -225,6 +241,8 @@ def answer_checkpoint(run_id: str, body: CheckpointIn) -> dict:
         answer["option"] = body.option
     if body.note:
         answer["note"] = body.note.strip()
+    if body.assignments:
+        answer["assignments"] = body.assignments
     active.answer_checkpoint(answer)
     return {"ok": True}
 
@@ -243,8 +261,7 @@ def send_message(run_id: str, body: MessageIn) -> dict:
     return {"id": entry.id}
 
 
-@app.get("/api/runs/{run_id}/files/{path:path}", response_class=PlainTextResponse)
-def run_file(run_id: str, path: str, session: Session = Depends(get_session)):
+def _run_path(run_id: str, path: str, session: Session):
     if not session.get(Run, run_id):
         raise HTTPException(status_code=404, detail="Run not found")
     try:
@@ -253,9 +270,56 @@ def run_file(run_id: str, path: str, session: Session = Depends(get_session)):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not target.is_file():
         raise HTTPException(status_code=404, detail="File not found")
-    return PlainTextResponse(
-        target.read_text(encoding="utf-8"), media_type="text/markdown; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{target.name}"'},
+    return target
+
+
+@app.get("/api/runs/{run_id}/files/{path:path}", response_class=PlainTextResponse)
+def run_file(run_id: str, path: str, inline: bool = False, session: Session = Depends(get_session)):
+    """Any file in the run folder, as text: inline for the Vault's code view, else a download."""
+    target = _run_path(run_id, path, session)
+    headers = {"X-Content-Type-Options": "nosniff"}
+    if not inline:
+        headers["Content-Disposition"] = f'attachment; filename="{target.name}"'
+    media = "text/markdown; charset=utf-8" if target.suffix == ".md" else "text/plain; charset=utf-8"
+    return PlainTextResponse(target.read_text(encoding="utf-8", errors="replace"), media_type=media,
+                             headers=headers)
+
+
+@app.get("/api/runs/{run_id}/tree")
+def run_tree(run_id: str, session: Session = Depends(get_session)) -> list[dict]:
+    if not session.get(Run, run_id):
+        raise HTTPException(status_code=404, detail="Run not found")
+    root = sandbox.run_dir(run_id)
+    return [
+        {"path": p.relative_to(root).as_posix(), "size": p.stat().st_size}
+        for p in sorted(root.rglob("*")) if p.is_file()
+    ]
+
+
+SITE_TYPES = {
+    ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".json": "application/json",
+    ".md": "text/plain; charset=utf-8", ".txt": "text/plain; charset=utf-8",
+}
+
+
+@app.get("/api/runs/{run_id}/site/{path:path}")
+def run_site(run_id: str, path: str, session: Session = Depends(get_session)):
+    """The built site, for the Vault's preview. It is shown in a sandboxed iframe, and this
+    policy stops its scripts from making network requests or being framed anywhere else."""
+    target = _run_path(run_id, f"site/{path or 'index.html'}", session)
+    site_root = sandbox.run_dir(run_id) / "site"
+    if site_root not in target.parents:
+        raise HTTPException(status_code=404, detail="File not found")
+    csp = (
+        "default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; font-src 'self' data:; connect-src 'none'; form-action 'none'; "
+        f"base-uri 'none'; frame-ancestors 'self' {get_settings().frontend_origin}"
+    )
+    return Response(
+        target.read_bytes(), media_type=SITE_TYPES.get(target.suffix.lower(), "text/plain; charset=utf-8"),
+        headers={"Content-Security-Policy": csp, "X-Content-Type-Options": "nosniff",
+                 "Cache-Control": "no-store", "Referrer-Policy": "no-referrer"},
     )
 
 

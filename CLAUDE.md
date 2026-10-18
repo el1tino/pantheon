@@ -42,7 +42,7 @@ pantheon/
 
 ## Core contracts (details in the spec)
 
-- **Agent reply format:** JSON with `stance` (propose | challenge | agree | vote | report | question), `reply_to`, `content`, an optional `proposal` and optional `votes`. It is validated with Pydantic. An invalid reply is retried once with the error shown, then dropped.
+- **Agent reply format:** JSON with `stance` (propose | challenge | agree | vote | report | question), `reply_to`, `content`, an optional `proposal` and optional `votes`. It is validated with Pydantic. An invalid reply is retried once with the error shown, then dropped. In the build phase the JSON is followed by plain `=== FILE: path ===` … `=== END FILE ===` blocks (paths under `site/` or `docs/`, text types only).
 - **DB tables:** runs, seats, messages, votes, tasks, artifacts, events.
 - **Event types:** phase_changed, seat_thinking, token, message_done, vote_cast, task_updated, artifact_created, cost_updated, checkpoint_opened, checkpoint_resolved, message_routed, diff_applied.
 

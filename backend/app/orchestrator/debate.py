@@ -10,6 +10,7 @@ every write is reported as a diff_applied event so the Chamber's core can count 
 """
 
 import asyncio
+import contextvars
 import difflib
 import json
 import time
@@ -47,6 +48,11 @@ MODERATOR = "moderator"
 CLIENT = "client"  # the user, speaking into the council chat
 TOKEN_FLUSH_S = 0.066  # batch streamed text into ~15 token events per second
 DIFF_FEED_MAX_LINES = 40
+
+
+# Tokens and cost of the turn in progress (a turn may include one retry). A context variable,
+# so turns running in parallel (the build phase) each keep their own count.
+_TURN: contextvars.ContextVar[list | None] = contextvars.ContextVar("pantheon_turn", default=None)
 
 
 class RunStopped(Exception):
@@ -156,9 +162,8 @@ class Debate:
         self.absent: set[str] = set()
         self.dropped = 0
         self.tally: dict[str, int] = {}
-        # Tokens and cost of the turn in progress (a turn may include one retry).
-        self._turn_tokens = 0
-        self._turn_cost = 0.0
+        # Serialises budget checks so parallel calls can't jointly overshoot the cap.
+        self._budget_lock = asyncio.Lock()
         self._artifact_versions: dict[str, int] = {}
 
         self.run = Run(
@@ -237,6 +242,24 @@ class Debate:
         )
         result.transcript_paths = self._save_transcript(result)
         return result
+
+    @staticmethod
+    def _new_turn() -> None:
+        _TURN.set([0, 0.0])
+
+    @staticmethod
+    def _turn_add(tokens: int, cost: float) -> None:
+        turn = _TURN.get()
+        if turn is None:
+            turn = [0, 0.0]
+            _TURN.set(turn)
+        turn[0] += tokens
+        turn[1] += cost
+
+    @staticmethod
+    def _turn_totals() -> tuple[int, float]:
+        turn = _TURN.get() or [0, 0.0]
+        return turn[0], turn[1]
 
     def _present(self) -> list[SeatConfig]:
         return [s for s in self.seats if s.letter not in self.absent]
@@ -413,13 +436,22 @@ class Debate:
         """
         max_tokens = max_tokens or self.reply_max_tokens
         estimate = self.budget.estimate(model, messages, max_tokens)
-        while True:
-            try:
-                self.budget.check(estimate)
-                break
-            except BudgetExceeded as exc:
-                await self._pause(exc)
+        async with self._budget_lock:
+            while True:
+                try:
+                    self.budget.check(estimate)
+                    break
+                except BudgetExceeded as exc:
+                    await self._pause(exc)
+            self.budget.reserved_usd += estimate
+        try:
+            return await self._send(who, model, messages, stream, max_tokens)
+        finally:
+            self.budget.reserved_usd -= estimate
 
+    async def _send(
+        self, who: str, model: str, messages: list[dict[str, str]], stream: str | None, max_tokens: int
+    ) -> str | None:
         self.log.emit("seat_thinking", seat=who, state="thinking")
         on_delta, flush = self._token_sink(who, stream)
         kwargs = {"on_delta": on_delta} if on_delta else {}
@@ -441,8 +473,7 @@ class Debate:
             model, res.prompt_tokens, res.completion_tokens, res.cost_usd
         )
         self.budget.record(cost)
-        self._turn_tokens += res.prompt_tokens + res.completion_tokens
-        self._turn_cost += cost
+        self._turn_add(res.prompt_tokens + res.completion_tokens, cost)
         self._set_run(spent_usd=self.budget.spent_usd)
         self.log.emit(
             "cost_updated", spent_usd=self.budget.spent_usd, cap_usd=self.budget.cap_usd,
@@ -487,10 +518,14 @@ class Debate:
         context: str | None = None,
         max_tokens: int | None = None,
         record: bool = True,
+        parse: Callable[[str], AgentReply] = parse_reply,
     ) -> Entry | None:
-        """Ask one seat for a reply; retry once with the error shown, then drop it."""
+        """Ask one seat for a reply; retry once with the error shown, then drop it.
+
+        `parse` turns the raw text into a reply (build steps also pull file blocks out of it).
+        """
         await self._gate()
-        self._turn_tokens, self._turn_cost = 0, 0.0
+        self._new_turn()
         messages = self._messages(seat, label, instruction, context)
         error = ""
         for attempt in (1, 2):
@@ -500,7 +535,7 @@ class Debate:
             if text is None:
                 return None
             try:
-                reply = parse_reply(text)
+                reply = parse(text)
                 validate(reply)
                 return self._add(seat.letter, round_, reply, record=record)
             except ReplyError as exc:
@@ -523,7 +558,7 @@ class Debate:
             id=f"m{len(self.entries) + 1}", seat=seat, round=round_, stance=reply.stance.value,
             content=reply.content, reply_to=reply.reply_to, proposal=reply.proposal,
             votes=[v.model_dump() for v in reply.votes] if reply.votes else None,
-            tokens=self._turn_tokens, cost_usd=self._turn_cost, phase=self.phase,
+            tokens=self._turn_totals()[0], cost_usd=self._turn_totals()[1], phase=self.phase,
         )
         self.entries.append(entry)
         self.by_id[entry.id] = entry
@@ -568,7 +603,7 @@ class Debate:
 
     def add_client_message(self, text: str) -> Entry:
         """The user spoke into the council chat. Every later prompt includes it."""
-        self._turn_tokens, self._turn_cost = 0, 0.0
+        self._new_turn()
         return self._add(CLIENT, "client", AgentReply(stance=Stance.REPORT, content=text), record=False)
 
     def _record_work(self, entry: Entry) -> None:
@@ -724,7 +759,7 @@ class Debate:
             )},
         ]
         await self._gate()
-        self._turn_tokens, self._turn_cost = 0, 0.0
+        self._new_turn()
         text = await self._call(MODERATOR, self.moderator_model, messages, stream="text")
         summary = text.strip() if text else f"**Decision**\n\n{outcome}\n\n(The moderator was unavailable.)"
         self._add(MODERATOR, "summary", AgentReply(stance=Stance.REPORT, content=summary))
